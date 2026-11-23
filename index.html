@@ -68,7 +68,8 @@
   <div class="sub">価格データ: 価格.com 最安価格 (2026-11-23 時点) が基準 ・ by Earlgrey-Arukido</div>
 
   <h2>構成パターン</h2>
-  <div id="patterns"></div>
+  <select id="pattern-select"></select>
+  <div id="pattern-detail"></div>
 
   <h2>予算で探す</h2>
   <div class="card">
@@ -212,20 +213,28 @@ function patternTotal(name) {
   return PATTERNS[name].reduce((sum, partName) => sum + byName[partName].price, 0);
 }
 
-// ===== 構成パターンの表示 =====
+// ===== 構成パターンの表示 (選択式) =====
 function renderPatterns() {
-  const box = document.getElementById("patterns");
+  const sel = document.getElementById("pattern-select");
   Object.keys(PATTERNS).forEach(name => {
-    const card = document.createElement("div");
-    card.className = "card";
-    let rows = "";
-    PATTERNS[name].forEach(partName => {
-      const p = byName[partName];
-      rows += `<tr><td class="cat">${p.cat}</td><td>${p.name}</td><td class="price">${yen(p.price)}</td></tr>`;
-    });
-    card.innerHTML = `<h3>${name}</h3><table>${rows}</table><div class="total">合計: ${yen(patternTotal(name))}</div>`;
-    box.appendChild(card);
+    const opt = document.createElement("option");
+    opt.value = name;
+    opt.textContent = name;
+    sel.appendChild(opt);
   });
+  sel.addEventListener("change", showSelectedPattern);
+  showSelectedPattern();
+}
+
+function showSelectedPattern() {
+  const name = document.getElementById("pattern-select").value;
+  const box = document.getElementById("pattern-detail");
+  let rows = "";
+  PATTERNS[name].forEach(partName => {
+    const p = byName[partName];
+    rows += `<tr><td class="cat">${p.cat}</td><td>${p.name}</td><td class="price">${yen(p.price)}</td></tr>`;
+  });
+  box.innerHTML = `<div class="card"><h3>${name}</h3><table>${rows}</table><div class="total">合計: ${yen(patternTotal(name))}</div></div>`;
 }
 
 // ===== 予算で探す =====
