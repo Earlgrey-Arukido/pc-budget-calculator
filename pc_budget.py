@@ -557,8 +557,9 @@ def auto_build(parts, budget, mode="new"):
     platform = "AM5" if budget >= 240000 else "AM4"
     mem_spec = "DDR5" if platform == "AM5" else "DDR4"
     sel = {}
-    if avail("OS"):
-        sel["OS"] = min(avail("OS"), key=price)
+    paid_os = [p for p in avail("OS") if (price(p) or 0) > 0]
+    if paid_os:
+        sel["OS"] = min(paid_os, key=price)
     cpus = [p for p in avail("CPU") if p["ソケット"] == platform]
     if cpus:
         cap = budget * SHARES["CPU"]
@@ -664,6 +665,27 @@ def show_compare(parts):
         gs = gpu_score_for(sel["GPU"]["名前"])
         est, rec = estimate_power(sel)
         print(f"  {name}: 合計 ¥{pattern_total(name, parts):,} / CPU {LEVEL_LABELS[cpu_level(cs[0])]} / GPU {LEVEL_LABELS[gpu_level(gs)]} / 推奨電源 {rec}W")
+
+
+BENCH_GUIDE = [
+    "--- ベンチマークの見方 (PassMark) ---",
+    "このツールは PassMark という世界共通ベンチマークの平均スコアで性能を見積もっています。",
+    "",
+    "【CPU シングルスレッド】 1つのコアの速さ",
+    "  ゲームのfpsの伸びに一番直結する数値。ゲーム重視ならまずこれを見る",
+    "  2600未満: 入門 / 2600〜: 標準 / 3000〜: ゲームに十分 / 3400〜: 高fps狙いもOK / 3900〜: ハイクラス / 4400〜: 最上位",
+    "【CPU マルチスレッド】 コア全部の合計パワー",
+    "  動画編集・配信・3Dレンダリングなど重い作業向け。ゲームだけなら優先度は低め",
+    "【GPU G3D Mark】 グラボの描画力",
+    "  fpsに一番効くのはこっち。解像度の目安:",
+    "  9000未満: 軽いゲーム向け / 9000〜: フルHD入門 / 14000〜: フルHD快適 / 19000〜: フルHD高設定〜WQHD / 24000〜: WQHD快適〜4K入門 / 30000〜: 4K級",
+    "【バランスとボトルネック】",
+    "  CPUとGPUは片方だけ強くてもダメ。弱い方に引っ張られて性能が出ない状態を「ボトルネック」と言う",
+    "【VRAM (グラボのメモリ)】",
+    "  8GB以下: 最新の重いゲームでは画質設定を下げがち / 12GB以上: フルHD〜WQHDで安心 / 16GB以上: 4KやMODでも余裕",
+    "【X3Dモデルについて】",
+    "  Ryzenの型番に「X3D」が付くCPUは大容量キャッシュ (3D V-Cache) のゲーム特化型。ベンチ数値以上に実際のゲームで強いことがある",
+]
 
 
 CHECKLIST = [
@@ -1090,6 +1112,12 @@ def check_compatibility(selected):
             warnings.append(
                 f"ℹ このGPUのVRAMは{vram}GBです。VRChatや最新の重いゲームでは不足気味になることがあります。長く使うなら12GB以上が安心です"
             )
+    # Linux OS の案内
+    os_part = selected.get("OS")
+    if os_part and "Linux" in os_part["名前"]:
+        warnings.append(
+            "ℹ LinuxではValorantなどカーネルレベルアンチチートを使うゲームは動作しません。SteamのProton対応タイトルが中心になります"
+        )
     return warnings
 
 
@@ -1205,6 +1233,7 @@ def main():
         print("  4: カスタム構成を作る (互換性チェック付き)")
         print("  5: 予算から自動で構成を組む")
         print("  6: 組み立てチェックリストを見る")
+        print("  7: ベンチマークの見方")
         print("  0: 終了")
         choice = input("番号を入力: ")
         if choice == "1":
@@ -1221,11 +1250,15 @@ def main():
             print()
             for line in CHECKLIST:
                 print(line)
+        elif choice == "7":
+            print()
+            for line in BENCH_GUIDE:
+                print(line)
         elif choice == "0":
             print("またね!")
             break
         else:
-            print("その番号はないよ。0〜6で選んでね")
+            print("その番号はないよ。0〜7で選んでね")
 
 
 if __name__ == "__main__":

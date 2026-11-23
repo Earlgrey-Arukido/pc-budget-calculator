@@ -98,10 +98,12 @@
   </div>
 
   <h2>構成パターン</h2>
+  <p class="sub" style="margin:-4px 0 10px;">おすすめ構成の内訳と合計。選ぶと性能見積もりや電源チェックも出ます</p>
   <select id="pattern-select"></select>
   <div id="pattern-detail"></div>
 
   <h2>パターン比較</h2>
+  <p class="sub" style="margin:-4px 0 10px;">全パターンを合計・CPU/GPUクラス・推奨電源で並べて比較できます</p>
   <div class="card">
     <table>
       <tr><th>パターン</th><th>合計</th><th>CPU</th><th>GPU</th><th>推奨電源</th></tr>
@@ -110,6 +112,7 @@
   </div>
 
   <h2>予算で探す</h2>
+  <p class="sub" style="margin:-4px 0 10px;">予算を入れると、その範囲に収まるパターンを教えてくれます</p>
   <div class="card">
     <input type="number" id="budget" placeholder="予算 (円)" min="0" step="1000">
     <button onclick="checkBudget()">探す</button>
@@ -125,6 +128,7 @@
   </div>
 
   <h2>カスタム構成 (互換性チェック付き)</h2>
+  <p class="sub" style="margin:-4px 0 10px;">パーツを1つずつ選んで合計と互換性をチェック。「価格の種類」で新品/中古相場を切り替えられます</p>
   <div class="card">
     <div class="filters">
       <span><label>価格の種類</label>
@@ -184,10 +188,29 @@
     </ul>
   </div>
 
+  <h2>ベンチマークの見方</h2>
+  <div class="card">
+    <p style="margin-top:0;">このツールの性能見積もりは、世界共通ベンチマーク <strong>PassMark</strong> の平均スコアが基準です。読み方を知ると構成選びで失敗しにくくなります。</p>
+    <p><strong>CPU シングルスレッド (1つのコアの速さ)</strong><br>
+    ゲームのfpsの伸びに一番直結する数値。ゲーム重視ならまずこれ。<br>
+    2600未満: 入門 / 2600〜: 標準 / 3000〜: ゲームに十分 / 3400〜: 高fps狙いもOK / 3900〜: ハイクラス / 4400〜: 最上位</p>
+    <p><strong>CPU マルチスレッド (コア全部の合計パワー)</strong><br>
+    動画編集・配信・3Dレンダリングなど重い作業向け。ゲームだけなら優先度は低め。</p>
+    <p><strong>GPU G3D Mark (グラボの描画力)</strong><br>
+    fpsに一番効くのはこっち。解像度の目安: 9000未満: 軽いゲーム向け / 9000〜: フルHD入門 / 14000〜: フルHD快適 / 19000〜: フルHD高設定〜WQHD / 24000〜: WQHD快適〜4K入門 / 30000〜: 4K級</p>
+    <p><strong>バランスとボトルネック</strong><br>
+    CPUとGPUは片方だけ強くてもダメ。弱い方に引っ張られて性能が出ない状態を「ボトルネック」と言います。</p>
+    <p><strong>VRAM (グラボのメモリ)</strong><br>
+    8GB以下: 最新の重いゲームでは画質設定を下げがち / 12GB以上: フルHD〜WQHDで安心 / 16GB以上: 4KやMODでも余裕</p>
+    <p><strong>X3Dモデルについて</strong><br>
+    Ryzenの型番に「X3D」が付くCPUは大容量キャッシュ (3D V-Cache) のゲーム特化型。ベンチ数値以上に実際のゲームで強いことがあります。</p>
+  </div>
+
   <footer>
     パーツ価格は変動します。購入前には価格.comで最新価格を確認してください。<br>
     価格・中古相場データ: 2026-11-23 時点<br>
-    ソースコード: <a href="https://github.com/Earlgrey-Arukido/pc-budget-calculator">GitHub リポジトリ</a>
+    ソースコード: <a href="https://github.com/Earlgrey-Arukido/pc-budget-calculator">GitHub リポジトリ</a><br>
+    お問い合わせ・要望・パーツ追加リクエスト: <a href="https://forms.gle/VLamhVf8ZZ1ftkpy8" target="_blank" rel="noopener">こちらのフォーム</a> から
   </footer>
 </div>
 
@@ -368,7 +391,10 @@ const PARTS = [
   {"cat": "ケース", "name": "Fractal Design North White", "price": 20830, "ff": "ATX", "note": "木製フロント"},
   {"cat": "ケース", "name": "Fractal Design Terra", "price": 31100, "ff": "Mini-ITX", "note": "Mini-ITX専用・SFF"},
   {"cat": "ケース", "name": "DEEPCOOL CH260", "price": 8470, "ff": "MicroATX", "note": "MicroATXまで対応"},
-  {"cat": "OS", "name": "Microsoft Windows 11 Home パッケージ版", "price": 14755, "ff": "USBメディア", "used": 12500}
+  {"cat": "OS", "name": "Microsoft Windows 11 Home パッケージ版", "price": 14755, "ff": "USBメディア", "used": 12500},
+  {"cat": "OS", "name": "Microsoft Windows 11 Pro パッケージ版", "price": 22397, "ff": "USBメディア", "note": "リモートデスクトップ/BitLocker対応。ゲーム性能はHomeと同等"},
+  {"cat": "OS", "name": "Ubuntu 24.04 LTS (Linux)", "price": 0, "ff": "ダウンロード", "note": "無料OS。ゲームはSteamのProton経由が中心"},
+  {"cat": "OS", "name": "Bazzite (SteamOS風Linux)", "price": 0, "ff": "ダウンロード", "note": "SteamOS風のゲーミング向けLinux。公式SteamOSはSteam Deck専用"}
 ];
 
 const PATTERNS = {
@@ -721,6 +747,10 @@ function checkCompatibility(selected) {
       warnings.push(`ℹ このGPUのVRAMは${v}GBです。VRChatや最新の重いゲームでは不足気味になることがあります。長く使うなら12GB以上が安心です`);
     }
   }
+  const osPart = selected["OS"];
+  if (osPart && osPart.name.includes("Linux")) {
+    warnings.push("ℹ LinuxではValorantなどカーネルレベルアンチチートを使うゲームは動作しません。SteamのProton対応タイトルが中心になります");
+  }
   return warnings;
 }
 
@@ -993,7 +1023,8 @@ function autoBuild(budget) {
   const memSpec = platform === "AM5" ? "DDR5" : "DDR4";
   const byPrice = arr => arr.slice().sort((a, b) => price(a) - price(b));
   const sel = {};
-  if (avail("OS").length) sel["OS"] = byPrice(avail("OS"))[0];
+  const paidOs = avail("OS").filter(p => (priceOf(p) || 0) > 0);
+  if (paidOs.length) sel["OS"] = byPrice(paidOs)[0];
   const cpus = avail("CPU").filter(p => p.socket === platform);
   if (cpus.length) {
     const inCap = cpus.filter(p => price(p) <= budget * SHARES["CPU"]);
@@ -1204,7 +1235,7 @@ function perfHtml(selected) {
   if (!lines.length) return "";
   return `<div style="margin-top:10px;">` + lines.map(l =>
     l.head ? `<p><strong>${l.t}</strong></p>` : `<p${l.warn ? ' class="warn"' : ""}>${l.t}</p>`
-  ).join("") + `</div>`;
+  ).join("") + `<p style="color:var(--muted);">※ スコアの読み方は下の「ベンチマークの見方」で解説しています</p></div>`;
 }
 
 function patternSelected(name) {
