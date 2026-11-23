@@ -74,7 +74,7 @@ CATEGORIES = ["CPU", "CPUクーラー", "マザーボード", "メモリ", "GPU"
 # シリーズ別グループの表示順 (カスタム構成モードの見出し用)
 GROUP_ORDER = {
     "CPU": ["AMD Ryzen (AM5)", "AMD Ryzen (AM4)", "Intel Core Ultra (LGA1851)", "Intel Core (LGA1700)"],
-    "GPU": ["GeForce RTX 50番台", "GeForce RTX 40番台", "GeForce RTX 30番台", "Radeon RX 9000番台", "Radeon RX 7000番台", "Radeon RX 6000番台", "Intel Arc"],
+    "GPU": ["GeForce RTX 50番台", "GeForce RTX 40番台", "GeForce RTX 30番台", "Radeon RX 9000番台", "Radeon RX 7000番台", "Radeon RX 6000番台", "Radeon RX 500番台", "Intel Arc"],
     "マザーボード": ["AM5", "AM4", "LGA1851", "LGA1700"],
 }
 
@@ -170,6 +170,7 @@ GPU_CHIP_SCORES = [
     ("RX 6600", 15030),
     ("RX 6500 XT", 9619),
     ("RX 6400", 7756),
+    ("RX 580", 8781),
     ("Arc B580", 16095),
     ("Arc B570", 14206),
     ("Arc A770", 13382),
@@ -309,6 +310,9 @@ def series_of(p):
         r = re.search(r"RX (\d)\d{3}", p["名前"])
         if r:
             return f"Radeon RX {r.group(1)}000番台"
+        r3 = re.search(r"RX (\d)\d{2}\b", p["名前"])
+        if r3:
+            return f"Radeon RX {r3.group(1)}00番台"
         if "Arc" in p["名前"]:
             return "Intel Arc"
     if p["カテゴリ"] == "マザーボード":
@@ -323,8 +327,25 @@ def load_parts(path="parts.csv"):
         reader = csv.DictReader(f)
         for row in reader:
             row["価格"] = int(row["価格"])  # 文字列 → 数値に変換
+            used = row.get("中古価格") or ""
+            row["中古価格"] = int(used) if used else None
             parts[row["名前"]] = row
     return parts
+
+
+def price_of(p, mode):
+    """価格モード (new / used) に応じた価格を返す。対象外なら None。
+
+    - 区分が「中古」のパーツ (RX 580など) は中古モードでのみ使える (価格=中古相場)
+    - 通常パーツは新品モードでは価格、中古モードでは中古価格 (未調査なら None)
+    """
+    if mode == "used":
+        if p.get("区分") == "中古":
+            return p["価格"]
+        return p["中古価格"]
+    if p.get("区分") == "中古":
+        return None
+    return p["価格"]
 
 
 def pattern_total(pattern_name, parts):
@@ -391,7 +412,12 @@ def show_all_parts(parts):
     """parts.csv の全パーツをカテゴリ順に表示する。"""
     print("\n--- パーツ一覧 (parts.csv) ---")
     for p in parts.values():
-        print(f"  [{p['カテゴリ']}] {p['名前']}  ¥{p['価格']:,}  ({p['備考']})")
+        extra = ""
+        if p.get("区分") == "中古":
+            extra = " [中古]"
+        elif p["中古価格"]:
+            extra = f" / 中古相場 ¥{p['中古価格']:,}"
+        print(f"  [{p['カテゴリ']}] {p['名前']}  ¥{p['価格']:,}{extra}  ({p['備考']})")
 
 
 # ============================================================
@@ -464,9 +490,13 @@ def custom_build(parts):
 
     selected = {}
     print("\n--- カスタム構成モード ---")
+    print("価格の種類は?  1: 新品価格  2: 中古相場")
+    mode = "used" if input("番号: ") == "2" else "new"
+    if mode == "used":
+        print("中古相場モード: 相場データのあるパーツだけが選べるよ")
     print("カテゴリごとに番号で選んでね。0 は「選ばない」")
     for cat in CATEGORIES:
-        options = grouped[cat]
+        options = [p for p in grouped[cat] if price_of(p, mode) is not None]
         # シリーズ別に並べ替える (CPU / GPU / マザーボード)
         if cat in GROUP_ORDER:
             order = GROUP_ORDER[cat]
@@ -481,7 +511,7 @@ def custom_build(parts):
             if cat in GROUP_ORDER and g and g != current_group:
                 print(f"  ― {g} ―")
                 current_group = g
-            print(f"  {i}: {p['名前']}  ¥{p['価格']:,}")
+            print(f"  {i}: {p['名前']}  ¥{price_of(p, mode):,}")
         print("  0: 選ばない")
         while True:
             text = input(f"{cat} の番号: ")
@@ -498,11 +528,11 @@ def custom_build(parts):
     for cat in CATEGORIES:
         if cat in selected:
             p = selected[cat]
-            print(f"  [{cat}] {p['名前']}  ¥{p['価格']:,}")
-            total += p["価格"]
+            print(f"  [{cat}] {p['名前']}  ¥{price_of(p, mode):,}")
+            total += price_of(p, mode)
         else:
             print(f"  [{cat}] (なし)")
-    print(f"  合計: ¥{total:,}")
+    print(f"  合計{' (中古相場)' if mode == 'used' else ''}: ¥{total:,}")
 
     # 互換性チェック
     print("\n--- 互換性チェック ---")

@@ -85,6 +85,11 @@
   <h2>カスタム構成 (互換性チェック付き)</h2>
   <div class="card">
     <div class="filters">
+      <span><label>価格の種類</label>
+      <select id="f-mode">
+        <option value="new">新品</option>
+        <option value="used">中古相場</option>
+      </select></span>
       <span><label>ソケット</label>
       <select id="f-socket">
         <option value="">すべて</option>
@@ -243,6 +248,7 @@ const PARTS = [
   {"cat": "GPU", "name": "XFX Radeon RX 6600 8GB", "price": 47161, "ff": "GDDR6 8GB"},
   {"cat": "GPU", "name": "MSI Radeon RX 6500 XT MECH 2X 4G OC", "price": 72005, "ff": "GDDR6 4GB・取扱い1店舗"},
   {"cat": "GPU", "name": "玄人志向 Radeon RX 6400 LP 4GB", "price": 19260, "ff": "GDDR6 4GB・補助電源なし"},
+  {"cat": "GPU", "name": "ASRock Phantom Gaming D Radeon RX 580 8GB", "price": 8500, "usedOnly": true, "ff": "GDDR5 8GB・中古相場 (メルカリ 2026-11-23調査)・新品取扱いなし"},
   {"cat": "GPU", "name": "ASRock Intel Arc A770 Phantom Gaming D 8GB OC", "price": 72000, "ff": "GDDR6 8GB・取扱い1店舗・在庫要確認"},
   {"cat": "GPU", "name": "SPARKLE Intel Arc A750 TITAN OC 8GB", "price": 49980, "ff": "GDDR6 8GB"},
   {"cat": "GPU", "name": "SPARKLE Intel Arc A380 ELF 6GB", "price": 38432, "ff": "GDDR6 6GB・補助電源なし"},
@@ -403,6 +409,8 @@ function seriesOf(p) {
     if (m) return "GeForce RTX " + m[1] + "0番台";
     const r = p.name.match(/RX (\d)\d{3}/);
     if (r) return "Radeon RX " + r[1] + "000番台";
+    const r3 = p.name.match(/RX (\d)\d{2}\b/);
+    if (r3) return "Radeon RX " + r3[1] + "00番台";
     if (p.name.includes("Arc")) return "Intel Arc";
   }
   if (p.cat === "マザーボード") return p.socket;
@@ -411,7 +419,7 @@ function seriesOf(p) {
 
 const GROUP_ORDER = {
   "CPU": ["AMD Ryzen (AM5)", "AMD Ryzen (AM4)", "Intel Core Ultra (LGA1851)", "Intel Core (LGA1700)"],
-  "GPU": ["GeForce RTX 50番台", "GeForce RTX 40番台", "GeForce RTX 30番台", "Radeon RX 9000番台", "Radeon RX 7000番台", "Radeon RX 6000番台", "Intel Arc"],
+  "GPU": ["GeForce RTX 50番台", "GeForce RTX 40番台", "GeForce RTX 30番台", "Radeon RX 9000番台", "Radeon RX 7000番台", "Radeon RX 6000番台", "Radeon RX 500番台", "Intel Arc"],
   "マザーボード": ["AM5", "AM4", "LGA1851", "LGA1700"]
 };
 
@@ -425,20 +433,32 @@ function makerOf(p) {
   return "";
 }
 
+function priceOf(p) {
+  // 価格の種類 (新品 / 中古相場) に応じた価格。対象外なら null
+  const mode = document.getElementById("f-mode").value;
+  if (mode === "used") {
+    if (p.usedOnly) return p.price;
+    return (p.used !== undefined) ? p.used : null;
+  }
+  return p.usedOnly ? null : p.price;
+}
+
 function passesFilters(p) {
+  const price = priceOf(p);
+  if (price === null) return false;
   const socket = document.getElementById("f-socket").value;
   const maker = document.getElementById("f-maker").value;
   const cap = parseInt(document.getElementById("f-budget").value, 10);
   if (socket && (p.cat === "CPU" || p.cat === "マザーボード") && p.socket !== socket) return false;
   if (maker && (p.cat === "CPU" || p.cat === "GPU") && makerOf(p) !== maker) return false;
-  if (!isNaN(cap) && p.price > cap) return false;
+  if (!isNaN(cap) && price > cap) return false;
   return true;
 }
 
 function optionOf(p) {
   const opt = document.createElement("option");
   opt.value = p.name;
-  opt.textContent = `${p.name} — ${yen(p.price)}`;
+  opt.textContent = `${p.name} — ${yen(priceOf(p))}`;
   return opt;
 }
 
@@ -483,7 +503,7 @@ function renderCustomForm() {
     form.appendChild(sel);
     populateOptions(cat);
   });
-  ["f-socket", "f-maker", "f-budget"].forEach(id => {
+  ["f-mode", "f-socket", "f-maker", "f-budget"].forEach(id => {
     document.getElementById(id).addEventListener("change", () => {
       CATEGORIES.forEach(populateOptions);
       updateCustom();
@@ -568,7 +588,7 @@ const GPU_CHIP_SCORES = [
   ["RX 7600 XT", 17370], ["RX 7600", 16429], ["RX 6950 XT", 28079], ["RX 6900 XT", 26631],
   ["RX 6800 XT", 25118], ["RX 6800", 22045], ["RX 6750 XT", 20705], ["RX 6700 XT", 19712],
   ["RX 6650 XT", 17087], ["RX 6600 XT", 16447], ["RX 6600", 15030], ["RX 6500 XT", 9619],
-  ["RX 6400", 7756], ["Arc B580", 16095], ["Arc B570", 14206], ["Arc A770", 13382],
+  ["RX 6400", 7756], ["RX 580", 8781], ["Arc B580", 16095], ["Arc B570", 14206], ["Arc A770", 13382],
   ["Arc A750", 12618], ["Arc A580", 12061], ["Arc A380", 6340], ["Arc A310", 5463]
 ];
 
@@ -663,8 +683,9 @@ function showPatternLinks() {
 function updateCustom() {
   const selected = getSelected();
   let total = 0;
-  Object.values(selected).forEach(p => total += p.price);
-  document.getElementById("custom-total").textContent = "合計: " + yen(total);
+  Object.values(selected).forEach(p => total += priceOf(p) || 0);
+  const mode = document.getElementById("f-mode").value;
+  document.getElementById("custom-total").textContent = "合計" + (mode === "used" ? "(中古相場)" : "") + ": " + yen(total);
   const warnings = checkCompatibility(selected);
   const box = document.getElementById("warnings");
   if (warnings.length > 0) {
