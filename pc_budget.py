@@ -4,7 +4,8 @@
 
 parts.csv に入っているパーツデータ(価格.comの最安価格が基準)を使って、
 構成パターンごとの合計金額を計算したり、
-予算に収まるパターンを探したりするツール。
+予算に収まるパターンを探したり、
+自分でパーツを1つずつ選んで互換性チェック付きで構成を作ったりするツール。
 
 使い方: python pc_budget.py
 """
@@ -45,6 +46,9 @@ PATTERNS = {
         "NZXT H5 Flow",
     ],
 }
+
+# カスタム構成モードで選ぶカテゴリの順番
+CATEGORIES = ["CPU", "マザーボード", "メモリ", "GPU", "SSD", "電源", "ケース"]
 
 
 def load_parts(path="parts.csv"):
@@ -105,6 +109,89 @@ def show_all_parts(parts):
         print(f"  [{p['カテゴリ']}] {p['名前']}  ¥{p['価格']:,}  ({p['備考']})")
 
 
+# ============================================================
+# カスタム構成モード + 互換性チェック
+# ============================================================
+def check_compatibility(selected):
+    """選んだパーツ同士の互換性をチェックして、警告のリストを返す。
+
+    チェック内容:
+    - CPUとマザーボードのソケット (AM4 / AM5) が合っているか
+    - メモリ規格 (DDR4 / DDR5) がマザーボード・CPUと合っているか
+    - GPUなしで、CPUにも内蔵GPUがない場合は画面が出ない警告
+    """
+    warnings = []
+    cpu = selected.get("CPU")
+    mb = selected.get("マザーボード")
+    mem = selected.get("メモリ")
+    gpu = selected.get("GPU")
+
+    if cpu and mb and cpu["ソケット"] != mb["ソケット"]:
+        warnings.append(
+            f"CPUのソケット({cpu['ソケット']})とマザーボードのソケット({mb['ソケット']})が違う! この組み合わせでは付きません"
+        )
+    if mem and mb and mem["メモリ規格"] != mb["メモリ規格"]:
+        warnings.append(
+            f"メモリ({mem['メモリ規格']})がマザーボードの対応規格({mb['メモリ規格']})と違う! 物理的に刺さりません"
+        )
+    if mem and cpu and mem["メモリ規格"] != cpu["メモリ規格"]:
+        warnings.append(
+            f"メモリ({mem['メモリ規格']})がCPUの対応規格({cpu['メモリ規格']})と違う!"
+        )
+    if cpu and not gpu and cpu["内蔵GPU"] == "なし":
+        warnings.append(
+            "GPUが選ばれていないのに、選んだCPUには内蔵GPUがない! このままだと画面が出ません"
+        )
+    return warnings
+
+
+def custom_build(parts):
+    """カテゴリごとにパーツを1つずつ選んで、合計と互換性を表示する。"""
+    # カテゴリごとにパーツをグループ化する
+    grouped = {c: [] for c in CATEGORIES}
+    for p in parts.values():
+        grouped[p["カテゴリ"]].append(p)
+
+    selected = {}
+    print("\n--- カスタム構成モード ---")
+    print("カテゴリごとに番号で選んでね。0 は「選ばない」")
+    for cat in CATEGORIES:
+        options = grouped[cat]
+        print(f"\n[{cat}]")
+        for i, p in enumerate(options, start=1):
+            print(f"  {i}: {p['名前']}  ¥{p['価格']:,}")
+        print("  0: 選ばない")
+        while True:
+            text = input(f"{cat} の番号: ")
+            if text.isdigit() and 0 <= int(text) <= len(options):
+                break
+            print("その番号はないよ。もう一度選んでね")
+        num = int(text)
+        if num > 0:
+            selected[cat] = options[num - 1]
+
+    # 結果表示
+    print("\n=== あなたの構成 ===")
+    total = 0
+    for cat in CATEGORIES:
+        if cat in selected:
+            p = selected[cat]
+            print(f"  [{cat}] {p['名前']}  ¥{p['価格']:,}")
+            total += p["価格"]
+        else:
+            print(f"  [{cat}] (なし)")
+    print(f"  合計: ¥{total:,}")
+
+    # 互換性チェック
+    print("\n--- 互換性チェック ---")
+    warnings = check_compatibility(selected)
+    if warnings:
+        for w in warnings:
+            print(f"  ⚠ {w}")
+    else:
+        print("  問題なし! ソケットとメモリ規格は合っています")
+
+
 def main():
     parts = load_parts()
     print("自作PC予算計算ツール")
@@ -114,6 +201,7 @@ def main():
         print("  1: 構成パターンの合計を見る")
         print("  2: 予算に収まるパターンを探す")
         print("  3: パーツ一覧を見る")
+        print("  4: カスタム構成を作る (互換性チェック付き)")
         print("  0: 終了")
         choice = input("番号を入力: ")
         if choice == "1":
@@ -122,11 +210,13 @@ def main():
             find_within_budget(parts)
         elif choice == "3":
             show_all_parts(parts)
+        elif choice == "4":
+            custom_build(parts)
         elif choice == "0":
             print("またね!")
             break
         else:
-            print("その番号はないよ。0〜3で選んでね")
+            print("その番号はないよ。0〜4で選んでね")
 
 
 if __name__ == "__main__":
