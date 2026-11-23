@@ -12,6 +12,7 @@ parts.csv に入っているパーツデータ(価格.comの最安価格が基�
 
 import csv
 import re
+import urllib.parse
 
 # ============================================================
 # 構成パターン
@@ -269,6 +270,22 @@ def perf_estimate(selected):
     return lines
 
 
+def buy_links(selected):
+    """選んだ構成の購入先リンク (価格.com / Amazon の検索リンク) を行のリストで返す。
+
+    最安の店は日々変わるので、商品ページ直リンクではなく検索リンクにしている。
+    """
+    lines = []
+    for cat in CATEGORIES:
+        if cat in selected:
+            p = selected[cat]
+            q = urllib.parse.quote(p["名前"], safe="")
+            lines.append(f"[{cat}] {p['名前']}  ¥{p['価格']:,}")
+            lines.append(f"  価格.comで探す: https://kakaku.com/search_results/{q}/")
+            lines.append(f"  Amazonで探す: https://www.amazon.co.jp/s?k={q}")
+    return lines
+
+
 def series_of(p):
     """パーツが属するシリーズ名を返す (グループ表示用)。"""
     if p["カテゴリ"] == "CPU":
@@ -332,6 +349,11 @@ def show_pattern(pattern_name, parts):
             print(f"  ⚠ {w}")
     for line in perf_estimate(pattern_selected(pattern_name, parts)):
         print(f"  {line}")
+    links = buy_links(pattern_selected(pattern_name, parts))
+    if links:
+        print("  --- 購入リンクまとめ (検索リンク) ---")
+        for line in links:
+            print(f"  {line}")
 
 
 def show_all_patterns(parts):
@@ -488,6 +510,13 @@ def custom_build(parts):
     if lines:
         print()
         for line in lines:
+            print(f"  {line}")
+
+    # 購入リンクまとめ
+    links = buy_links(selected)
+    if links:
+        print("\n--- 購入リンクまとめ (検索リンク) ---")
+        for line in links:
             print(f"  {line}")
 
 

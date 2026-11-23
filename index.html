@@ -102,6 +102,8 @@
     <div class="total" id="custom-total">合計: ¥0</div>
     <div id="warnings" style="margin-top:8px;"></div>
     <div id="custom-perf" style="margin-top:8px;"></div>
+    <button onclick="showBuyLinks()" style="margin-top:10px;">🛒 購入リンクをまとめる</button>
+    <div id="buy-links" style="margin-top:8px;"></div>
   </div>
 
   <footer>
@@ -361,7 +363,7 @@ function showSelectedPattern() {
     const p = byName[partName];
     rows += `<tr><td class="cat">${p.cat}</td><td>${p.name}</td><td class="price">${yen(p.price)}</td></tr>`;
   });
-  box.innerHTML = `<div class="card"><h3>${name}</h3><table>${rows}</table><div class="total">合計: ${yen(patternTotal(name))}</div>${perfHtml(patternSelected(name))}</div>`;
+  box.innerHTML = `<div class="card"><h3>${name}</h3><table>${rows}</table><div class="total">合計: ${yen(patternTotal(name))}</div>${perfHtml(patternSelected(name))}<button onclick="showPatternLinks()" style="margin-top:10px;">🛒 購入リンクをまとめる</button><div id="pattern-links" style="margin-top:8px;"></div></div>`;
 }
 
 // ===== 予算で探す =====
@@ -625,6 +627,26 @@ function patternSelected(name) {
   const selected = {};
   PATTERNS[name].forEach(partName => { const p = byName[partName]; selected[p.cat] = p; });
   return selected;
+}
+
+// ===== 購入リンクまとめ (最安の店は日々変わるので検索リンク) =====
+function buyLinksHtml(selected) {
+  const cats = CATEGORIES.filter(c => selected[c]);
+  if (!cats.length) return "<p>まずパーツを選んでね</p>";
+  return cats.map(cat => {
+    const p = selected[cat];
+    const q = encodeURIComponent(p.name);
+    return `<div class="budget-row"><span>[${cat}] ${p.name}</span><span><a href="https://kakaku.com/search_results/${q}/" target="_blank" rel="noopener">価格.comで探す</a> ・ <a href="https://www.amazon.co.jp/s?k=${q}" target="_blank" rel="noopener">Amazonで探す</a></span></div>`;
+  }).join("");
+}
+
+function showBuyLinks() {
+  document.getElementById("buy-links").innerHTML = buyLinksHtml(getSelected());
+}
+
+function showPatternLinks() {
+  const name = document.getElementById("pattern-select").value;
+  document.getElementById("pattern-links").innerHTML = buyLinksHtml(patternSelected(name));
 }
 
 function updateCustom() {
