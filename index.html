@@ -105,7 +105,7 @@
   <select id="pattern-select"></select>
   <div id="pattern-detail"></div>
 
-  <h2>パターン比較</h2>
+  <h2 data-closed="1">パターン比較</h2>
   <p class="sub" style="margin:-4px 0 10px;">全パターンを合計・CPU/GPUクラス・推奨電源で並べて比較できます</p>
   <div class="card">
     <table>
@@ -114,7 +114,7 @@
     </table>
   </div>
 
-  <h2>予算で探す</h2>
+  <h2 data-closed="1">予算で探す</h2>
   <p class="sub" style="margin:-4px 0 10px;">予算を入れると、その範囲に収まるパターンを教えてくれます</p>
   <div class="card">
     <input type="number" id="budget" placeholder="予算 (円)" min="0" step="1000">
@@ -169,7 +169,7 @@
     <div id="copy-result" style="margin-top:8px;"></div>
   </div>
 
-  <h2>組み立てチェックリスト</h2>
+  <h2 data-closed="1">組み立てチェックリスト</h2>
   <div class="card">
     <p><strong>必要なもの</strong></p>
     <ul>
@@ -191,7 +191,7 @@
     </ul>
   </div>
 
-  <h2>ベンチマークの見方</h2>
+  <h2 data-closed="1">ベンチマークの見方</h2>
   <div class="card">
     <p style="margin-top:0;">このツールの性能見積もりは、世界共通ベンチマーク <strong>PassMark</strong> の平均スコアが基準です。読み方を知ると構成選びで失敗しにくくなります。</p>
     <p><strong>CPU シングルスレッド (1つのコアの速さ)</strong><br>
@@ -1305,6 +1305,10 @@ document.querySelectorAll("h2").forEach(h => {
   while (el && el.tagName !== "H2" && el.tagName !== "FOOTER") {
     targets.push(el);
     el = el.nextElementSibling;
+  }
+  if (h.dataset.closed) {
+    h.classList.add("closed");
+    targets.forEach(t => { t.style.display = "none"; });
   }
   h.addEventListener("click", () => {
     const closed = h.classList.toggle("closed");
