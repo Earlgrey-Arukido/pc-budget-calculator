@@ -294,7 +294,7 @@ def custom_build(parts):
 def main():
     parts = load_parts()
     print("自作PC予算計算ツール")
-    print("価格データ: 価格.com 最安価格 (2026-11-23 時点) が基準")
+    print("価格データ: 価格.com / Amazon等 最安価格 (2026-11-23 時点) が基準")
     while True:
         print("\n何をする?")
         print("  1: 構成パターンの合計を見る")
