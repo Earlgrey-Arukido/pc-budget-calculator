@@ -1,0 +1,228 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>自作PC予算計算ツール</title>
+<style>
+  :root {
+    --bg: #0f1420;
+    --card: #1a2233;
+    --card2: #232f47;
+    --text: #e8edf5;
+    --muted: #9fb0c9;
+    --accent: #4da3ff;
+    --ok: #3ecf6f;
+    --warn: #ffb340;
+    --ng: #ff5d5d;
+  }
+  * { box-sizing: border-box; }
+  body {
+    margin: 0;
+    font-family: "Hiragino Kaku Gothic ProN", "Noto Sans JP", sans-serif;
+    background: var(--bg);
+    color: var(--text);
+    line-height: 1.6;
+  }
+  .wrap { max-width: 880px; margin: 0 auto; padding: 20px 16px 48px; }
+  h1 { font-size: 1.5rem; margin: 8px 0 4px; }
+  .sub { color: var(--muted); font-size: 0.85rem; margin-bottom: 20px; }
+  h2 { font-size: 1.1rem; margin: 28px 0 10px; border-left: 4px solid var(--accent); padding-left: 8px; }
+  .card {
+    background: var(--card);
+    border-radius: 12px;
+    padding: 14px 16px;
+    margin-bottom: 12px;
+  }
+  .card h3 { margin: 0 0 8px; font-size: 1rem; }
+  table { width: 100%; border-collapse: collapse; font-size: 0.9rem; }
+  td { padding: 3px 0; vertical-align: top; }
+  td.cat { color: var(--muted); white-space: nowrap; padding-right: 8px; font-size: 0.8rem; }
+  td.price { text-align: right; white-space: nowrap; padding-left: 8px; }
+  .total { font-weight: bold; font-size: 1.05rem; text-align: right; margin-top: 6px; }
+  input[type="number"] {
+    width: 180px; padding: 8px 10px; border-radius: 8px; border: 1px solid #3a4a6b;
+    background: var(--card2); color: var(--text); font-size: 1rem;
+  }
+  button {
+    padding: 8px 16px; border: none; border-radius: 8px; cursor: pointer;
+    background: var(--accent); color: #fff; font-size: 0.95rem; margin-left: 8px;
+  }
+  select {
+    width: 100%; padding: 8px 10px; border-radius: 8px; border: 1px solid #3a4a6b;
+    background: var(--card2); color: var(--text); font-size: 0.95rem; margin: 2px 0 10px;
+  }
+  label { font-size: 0.85rem; color: var(--muted); }
+  .ok { color: var(--ok); }
+  .ng { color: var(--ng); }
+  .warn { color: var(--warn); }
+  .budget-row { display: flex; justify-content: space-between; padding: 4px 0; font-size: 0.95rem; }
+  #warnings p { margin: 4px 0; }
+  footer { color: var(--muted); font-size: 0.8rem; margin-top: 32px; }
+  a { color: var(--accent); }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <h1>🖥️ 自作PC予算計算ツール</h1>
+  <div class="sub">価格データ: 価格.com 最安価格 (2026-11-23 時点) が基準 ・ by Earlgrey-Arukido</div>
+
+  <h2>構成パターン</h2>
+  <div id="patterns"></div>
+
+  <h2>予算で探す</h2>
+  <div class="card">
+    <input type="number" id="budget" placeholder="予算 (円)" min="0" step="1000">
+    <button onclick="checkBudget()">探す</button>
+    <div id="budget-result" style="margin-top:10px;"></div>
+  </div>
+
+  <h2>カスタム構成 (互換性チェック付き)</h2>
+  <div class="card">
+    <div id="custom-form"></div>
+    <div class="total" id="custom-total">合計: ¥0</div>
+    <div id="warnings" style="margin-top:8px;"></div>
+  </div>
+
+  <footer>
+    パーツ価格は変動します。購入前には価格.comで最新価格を確認してください。<br>
+    ソースコード: <a href="https://github.com/Earlgrey-Arukido/pc-budget-calculator">GitHub リポジトリ</a>
+  </footer>
+</div>
+
+<script>
+// ===== パーツデータ (parts.csv と同じ内容) =====
+const PARTS = [
+  {cat:"CPU", name:"AMD Ryzen 5 5600", price:21799, socket:"AM4", mem:"DDR4", igpu:"なし", note:"クーラー付属BOX"},
+  {cat:"CPU", name:"AMD Ryzen 5 7500F", price:24800, socket:"AM5", mem:"DDR5", igpu:"なし", note:"クーラー付属BOX"},
+  {cat:"マザーボード", name:"ASRock B550M-HDV", price:7269, socket:"AM4", mem:"DDR4", note:"MicroATX"},
+  {cat:"マザーボード", name:"ASRock B550 Phantom Gaming 4", price:13860, socket:"AM4", mem:"DDR4", note:"ATX"},
+  {cat:"マザーボード", name:"ASRock B650M PG Riptide WiFi White", price:22100, socket:"AM5", mem:"DDR5", note:"MicroATX・Wi-Fi付き"},
+  {cat:"メモリ", name:"Corsair DDR4-3200 32GB (16GBx2)", price:37480, mem:"DDR4", note:"CMK32GX4M2E3200C16"},
+  {cat:"メモリ", name:"DDR5-5600 32GB (16GBx2) 最安クラス", price:59980, mem:"DDR5", note:"価格.comカテゴリ最安"},
+  {cat:"GPU", name:"ASRock Radeon RX 7600 Steel Legend 8GB OC", price:47500, note:"VRAM 8GB"},
+  {cat:"GPU", name:"Colorful GeForce RTX 5060 Gaming DUO 8GB", price:85800, note:"VRAM 8GB GDDR7"},
+  {cat:"SSD", name:"KIOXIA EXCERIA PLUS G3 1TB", price:32120, note:"NVMe Gen4・TBW 600TB"},
+  {cat:"SSD", name:"Samsung 990 PRO 1TB", price:34980, note:"NVMe Gen4"},
+  {cat:"電源", name:"Fractal Design ION Gold 750W", price:13830, note:"80PLUS GOLD"},
+  {cat:"ケース", name:"NZXT H5 Flow", price:11780, note:"ミドルタワー"}
+];
+
+const PATTERNS = {
+  "AM4コスパゲーミング": ["AMD Ryzen 5 5600","ASRock B550M-HDV","Corsair DDR4-3200 32GB (16GBx2)","ASRock Radeon RX 7600 Steel Legend 8GB OC","KIOXIA EXCERIA PLUS G3 1TB","Fractal Design ION Gold 750W","NZXT H5 Flow"],
+  "VRChat向け AM4強化": ["AMD Ryzen 5 5600","ASRock B550 Phantom Gaming 4","Corsair DDR4-3200 32GB (16GBx2)","Colorful GeForce RTX 5060 Gaming DUO 8GB","KIOXIA EXCERIA PLUS G3 1TB","Fractal Design ION Gold 750W","NZXT H5 Flow"],
+  "AM5バランス": ["AMD Ryzen 5 7500F","ASRock B650M PG Riptide WiFi White","DDR5-5600 32GB (16GBx2) 最安クラス","Colorful GeForce RTX 5060 Gaming DUO 8GB","Samsung 990 PRO 1TB","Fractal Design ION Gold 750W","NZXT H5 Flow"]
+};
+
+const CATEGORIES = ["CPU","マザーボード","メモリ","GPU","SSD","電源","ケース"];
+const byName = {};
+PARTS.forEach(p => byName[p.name] = p);
+
+function yen(n) { return "¥" + n.toLocaleString("ja-JP"); }
+
+function patternTotal(name) {
+  return PATTERNS[name].reduce((sum, partName) => sum + byName[partName].price, 0);
+}
+
+// ===== 構成パターンの表示 =====
+function renderPatterns() {
+  const box = document.getElementById("patterns");
+  Object.keys(PATTERNS).forEach(name => {
+    const card = document.createElement("div");
+    card.className = "card";
+    let rows = "";
+    PATTERNS[name].forEach(partName => {
+      const p = byName[partName];
+      rows += `<tr><td class="cat">${p.cat}</td><td>${p.name}</td><td class="price">${yen(p.price)}</td></tr>`;
+    });
+    card.innerHTML = `<h3>${name}</h3><table>${rows}</table><div class="total">合計: ${yen(patternTotal(name))}</div>`;
+    box.appendChild(card);
+  });
+}
+
+// ===== 予算で探す =====
+function checkBudget() {
+  const budget = parseInt(document.getElementById("budget").value, 10);
+  const box = document.getElementById("budget-result");
+  if (isNaN(budget)) { box.innerHTML = "予算を数字で入力してね"; return; }
+  let html = "";
+  Object.keys(PATTERNS).forEach(name => {
+    const total = patternTotal(name);
+    if (total <= budget) {
+      html += `<div class="budget-row"><span class="ok">○ ${name}</span><span>${yen(total)} (残り ${yen(budget - total)})</span></div>`;
+    } else {
+      html += `<div class="budget-row"><span class="ng">× ${name}</span><span>${yen(total)} (${yen(total - budget)} オーバー)</span></div>`;
+    }
+  });
+  box.innerHTML = html;
+}
+
+// ===== カスタム構成 =====
+function renderCustomForm() {
+  const form = document.getElementById("custom-form");
+  CATEGORIES.forEach(cat => {
+    const label = document.createElement("label");
+    label.textContent = cat;
+    form.appendChild(label);
+    const sel = document.createElement("select");
+    sel.id = "sel-" + cat;
+    sel.innerHTML = `<option value="">(選ばない)</option>`;
+    PARTS.filter(p => p.cat === cat).forEach(p => {
+      const opt = document.createElement("option");
+      opt.value = p.name;
+      opt.textContent = `${p.name} — ${yen(p.price)}`;
+      sel.appendChild(opt);
+    });
+    sel.addEventListener("change", updateCustom);
+    form.appendChild(sel);
+  });
+}
+
+function getSelected() {
+  const selected = {};
+  CATEGORIES.forEach(cat => {
+    const v = document.getElementById("sel-" + cat).value;
+    if (v) selected[cat] = byName[v];
+  });
+  return selected;
+}
+
+function checkCompatibility(selected) {
+  const warnings = [];
+  const cpu = selected["CPU"], mb = selected["マザーボード"], mem = selected["メモリ"], gpu = selected["GPU"];
+  if (cpu && mb && cpu.socket !== mb.socket) {
+    warnings.push(`CPUのソケット(${cpu.socket})とマザーボードのソケット(${mb.socket})が違う! この組み合わせでは付きません`);
+  }
+  if (mem && mb && mem.mem !== mb.mem) {
+    warnings.push(`メモリ(${mem.mem})がマザーボードの対応規格(${mb.mem})と違う! 物理的に刺さりません`);
+  }
+  if (mem && cpu && mem.mem !== cpu.mem) {
+    warnings.push(`メモリ(${mem.mem})がCPUの対応規格(${cpu.mem})と違う!`);
+  }
+  if (cpu && !gpu && cpu.igpu === "なし") {
+    warnings.push("GPUが選ばれていないのに、選んだCPUには内蔵GPUがない! このままだと画面が出ません");
+  }
+  return warnings;
+}
+
+function updateCustom() {
+  const selected = getSelected();
+  let total = 0;
+  Object.values(selected).forEach(p => total += p.price);
+  document.getElementById("custom-total").textContent = "合計: " + yen(total);
+  const warnings = checkCompatibility(selected);
+  const box = document.getElementById("warnings");
+  if (warnings.length > 0) {
+    box.innerHTML = warnings.map(w => `<p class="warn">⚠ ${w}</p>`).join("");
+  } else if (Object.keys(selected).length > 0) {
+    box.innerHTML = `<p class="ok">互換性チェック: 問題なし!</p>`;
+  } else {
+    box.innerHTML = "";
+  }
+}
+
+renderPatterns();
+renderCustomForm();
+</script>
+</body>
+</html>
