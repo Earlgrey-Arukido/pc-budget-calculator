@@ -190,10 +190,15 @@ def check_compatibility(selected):
         warnings.append(
             "選んだCPUはクーラー別売りなのに、CPUクーラーが選ばれていない! これでは冷やせません"
         )
-    if mb and case and mb["フォームファクタ"] == "ATX" and case["フォームファクタ"] == "MicroATX":
-        warnings.append(
-            "ATXマザーボードはMicroATX専用ケースに入りません!"
-        )
+    # フォームファクタ: マザーボードのサイズがケースに入る最大サイズを超えたら警告
+    size_rank = {"ATX": 3, "MicroATX": 2, "Mini-ITX": 1}
+    if mb and case:
+        board_size = size_rank.get(mb["フォームファクタ"], 0)
+        case_size = size_rank.get(case["フォームファクタ"], 0)
+        if board_size and case_size and board_size > case_size:
+            warnings.append(
+                f"{mb['フォームファクタ']}マザーボードは{case['フォームファクタ']}まで対応のケースに入りません!"
+            )
     return warnings
 
 
