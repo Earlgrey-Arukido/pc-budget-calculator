@@ -1,6 +1,6 @@
 # -*- coding: utf-8 -*-
 """
-自作PC予算計算ツール (pc_budget.py)
+組めちゃいます！ 自作PCシミュレーター (pc_budget.py)
 
 parts.csv に入っているパーツデータ(価格.comの最安価格が基準)を使って、
 構成パターンごとの合計金額を計算したり、
@@ -1138,7 +1138,7 @@ def custom_build(parts):
 
 def main():
     parts = load_parts()
-    print("自作PC予算計算ツール")
+    print("組めちゃいます！ (自作PCシミュレーター)")
     print(f"価格データ: 価格.com / Amazon等 最安価格 ({DATA_DATE} 時点) が基準。中古相場も {DATA_DATE} 調査")
     while True:
         print("\n何をする?")
