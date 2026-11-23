@@ -435,15 +435,40 @@ def power_check(selected):
     return lines
 
 
-# ゲーム別fps目安 (GPUのG3D Mark → 1080pでの目安ラベル。閾値の降順リスト)
-GAME_FPS = [
-    ("Valorant", [(12000, "240fps安定"), (6000, "144fps安定"), (3000, "60fps安定"), (0, "設定を下げれば60fps")]),
-    ("Apex Legends", [(20000, "144fps安定"), (14000, "100fps前後"), (9000, "60fps安定"), (5000, "設定を下げれば60fps"), (0, "厳しい")]),
-    ("Fortnite", [(24000, "144fps安定"), (16000, "100fps前後"), (10000, "60fps安定"), (6000, "設定を下げれば60fps"), (0, "厳しい")]),
-    ("原神", [(14000, "最高設定60fps安定"), (8000, "60fps安定"), (4000, "中設定で60fps"), (0, "設定を下げればプレイ可")]),
-    ("Minecraft (バニラ)", [(10000, "快適 (影MODは別)"), (5000, "快適"), (0, "軽い設定なら可")]),
-    ("モンスターハンターワイルズ", [(30000, "高設定60fps"), (22000, "中設定60fps"), (16000, "低設定+アップスケーリングで60fps"), (0, "厳しい")]),
+# ゲーム別fps目安 (公開ベンチマークの代表値をアンカーにしてG3D Markから補間する推定。1080p)
+# (ゲーム名, 設定条件, [(G3D, fps), ...], fps上限, CPU上限も効くか)
+GAME_FPS_DATA = [
+    ("Valorant", "高設定", [(4000, 150), (8781, 240), (13000, 320), (16689, 370), (20580, 470), (25000, 540), (30000, 620)], 700, True),
+    ("Apex Legends", "中設定", [(4000, 55), (8781, 100), (13000, 135), (16689, 165), (20580, 205), (25000, 235), (30000, 265), (35652, 300)], 300, False),
+    ("Fortnite", "DX12・中設定", [(4000, 40), (8781, 70), (13000, 100), (16689, 125), (20580, 165), (25000, 195), (30000, 230), (35652, 275)], 350, True),
+    ("原神", "最高設定", [(3000, 35), (5000, 50), (7000, 58), (8781, 60)], 60, False),
+    ("モンスターハンターワイルズ", "中設定・アップスケーリングON", [(8781, 18), (13000, 32), (16689, 45), (19477, 58), (20580, 68), (25000, 82), (28684, 95), (32330, 110), (35652, 128)], 160, False),
 ]
+# CPUのシングルスレッド性能が上限になるゲーム向けの上限アンカー (STスコア, fps)
+CPU_FPS_CAP = [(2000, 180), (2600, 260), (3000, 330), (3400, 420), (3900, 520), (4400, 620)]
+# MinecraftはCPU主体 (STスコア, fps)。GPUが弱い場合は別途割り引く
+MC_CPU_FPS = [(2000, 120), (2600, 200), (3000, 280), (3400, 380), (3900, 520), (4400, 650)]
+
+
+def _interp(points, x):
+    """アンカー列から線形補間で推定値を返す。"""
+    if x <= points[0][0]:
+        return points[0][1] * x / points[0][0]
+    for (x0, y0), (x1, y1) in zip(points, points[1:]):
+        if x <= x1:
+            return y0 + (y1 - y0) * (x - x0) / (x1 - x0)
+    (x0, y0), (x1, y1) = points[-2], points[-1]
+    return y1 + (y1 - y0) * (x - x1) / (x1 - x0)
+
+
+def _fps_range(est, cap):
+    """推定fpsを「約○〜○fps」の幅つき文字列にする。"""
+    est = min(est, cap)
+    if est >= cap * 0.97:
+        return f"{cap}fps (上限)"
+    lo = int(round(est * 0.85 / 5.0)) * 5
+    hi = int(round(min(est * 1.15, cap) / 5.0)) * 5
+    return f"約{lo}〜{hi}fps"
 
 
 def game_fps_lines(selected):
@@ -454,16 +479,22 @@ def game_fps_lines(selected):
     g = gpu_score_for(gpu["名前"])
     if g is None:
         return []
-    lines = ["🎯 ゲーム別fps目安 (1080p・目安)"]
-    for game, bands in GAME_FPS:
-        for threshold, label in bands:
-            if g >= threshold:
-                lines.append(f"  {game}: {label}")
-                break
     cpu = selected.get("CPU")
-    if cpu and cpu["名前"] in CPU_SCORES:
-        if gpu_level(g) - cpu_level(CPU_SCORES[cpu["名前"]][0]) >= 2:
-            lines.append("  ※ CPUがボトルネックになりやすく、上のfpsに届かない場面があります")
+    st = CPU_SCORES[cpu["名前"]][0] if cpu and cpu["名前"] in CPU_SCORES else None
+    lines = ["🎯 ゲーム別fps目安 (1080p・公開ベンチマークからの推定)"]
+    for game, setting, points, cap, cpu_cap in GAME_FPS_DATA:
+        est = _interp(points, g)
+        if cpu_cap and st:
+            est = min(est, _interp(CPU_FPS_CAP, st))
+        lines.append(f"  {game} ({setting}): {_fps_range(est, cap)}")
+        if game == "原神" and st:
+            mc = _interp(MC_CPU_FPS, st)
+            if g < 5000:
+                mc *= g / 5000
+            lines.append(f"  Minecraft (バニラ・描画距離12): {_fps_range(mc, 800)}")
+    lines.append("  ※ 場面やドライバで前後します。正確なところは実測レビューも参考に")
+    if cpu and st and gpu_level(g) - cpu_level(st) >= 2:
+        lines.append("  ※ CPUがボトルネックになりやすく、上のfpsに届かない場面があります")
     return lines
 
 

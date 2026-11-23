@@ -942,28 +942,54 @@ function powerLines(selected) {
   return lines;
 }
 
-const GAME_FPS = [
-  ["Valorant", [[12000, "240fps安定"], [6000, "144fps安定"], [3000, "60fps安定"], [0, "設定を下げれば60fps"]]],
-  ["Apex Legends", [[20000, "144fps安定"], [14000, "100fps前後"], [9000, "60fps安定"], [5000, "設定を下げれば60fps"], [0, "厳しい"]]],
-  ["Fortnite", [[24000, "144fps安定"], [16000, "100fps前後"], [10000, "60fps安定"], [6000, "設定を下げれば60fps"], [0, "厳しい"]]],
-  ["原神", [[14000, "最高設定60fps安定"], [8000, "60fps安定"], [4000, "中設定で60fps"], [0, "設定を下げればプレイ可"]]],
-  ["Minecraft (バニラ)", [[10000, "快適 (影MODは別)"], [5000, "快適"], [0, "軽い設定なら可"]]],
-  ["モンスターハンターワイルズ", [[30000, "高設定60fps"], [22000, "中設定60fps"], [16000, "低設定+アップスケーリングで60fps"], [0, "厳しい"]]]
+const GAME_FPS_DATA = [
+  ["Valorant", "高設定", [[4000, 150], [8781, 240], [13000, 320], [16689, 370], [20580, 470], [25000, 540], [30000, 620]], 700, true],
+  ["Apex Legends", "中設定", [[4000, 55], [8781, 100], [13000, 135], [16689, 165], [20580, 205], [25000, 235], [30000, 265], [35652, 300]], 300, false],
+  ["Fortnite", "DX12・中設定", [[4000, 40], [8781, 70], [13000, 100], [16689, 125], [20580, 165], [25000, 195], [30000, 230], [35652, 275]], 350, true],
+  ["原神", "最高設定", [[3000, 35], [5000, 50], [7000, 58], [8781, 60]], 60, false],
+  ["モンスターハンターワイルズ", "中設定・アップスケーリングON", [[8781, 18], [13000, 32], [16689, 45], [19477, 58], [20580, 68], [25000, 82], [28684, 95], [32330, 110], [35652, 128]], 160, false]
 ];
+const CPU_FPS_CAP = [[2000, 180], [2600, 260], [3000, 330], [3400, 420], [3900, 520], [4400, 620]];
+const MC_CPU_FPS = [[2000, 120], [2600, 200], [3000, 280], [3400, 380], [3900, 520], [4400, 650]];
+
+function interpFps(points, x) {
+  if (x <= points[0][0]) return points[0][1] * x / points[0][0];
+  for (let i = 0; i < points.length - 1; i++) {
+    const [x0, y0] = points[i], [x1, y1] = points[i + 1];
+    if (x <= x1) return y0 + (y1 - y0) * (x - x0) / (x1 - x0);
+  }
+  const [x0, y0] = points[points.length - 2], [x1, y1] = points[points.length - 1];
+  return y1 + (y1 - y0) * (x - x1) / (x1 - x0);
+}
+
+function fpsRange(est, cap) {
+  est = Math.min(est, cap);
+  if (est >= cap * 0.97) return cap + "fps (上限)";
+  const lo = Math.round(est * 0.85 / 5) * 5;
+  const hi = Math.round(Math.min(est * 1.15, cap) / 5) * 5;
+  return "約" + lo + "〜" + hi + "fps";
+}
 
 function gameFpsLines(selected) {
   const gpu = selected["GPU"];
   if (!gpu) return [];
   const g = gpuScoreFor(gpu.name);
   if (g === null) return [];
-  const lines = ["🎯 ゲーム別fps目安 (1080p・目安)"];
-  for (const [game, bands] of GAME_FPS) {
-    for (const [th, label] of bands) {
-      if (g >= th) { lines.push(`${game}: ${label}`); break; }
+  const cpu = selected["CPU"];
+  const st = cpu && CPU_SCORES[cpu.name] ? CPU_SCORES[cpu.name][0] : null;
+  const lines = ["🎯 ゲーム別fps目安 (1080p・公開ベンチマークからの推定)"];
+  for (const [game, setting, points, cap, cpuCap] of GAME_FPS_DATA) {
+    let est = interpFps(points, g);
+    if (cpuCap && st) est = Math.min(est, interpFps(CPU_FPS_CAP, st));
+    lines.push(`${game} (${setting}): ${fpsRange(est, cap)}`);
+    if (game === "原神" && st) {
+      let mc = interpFps(MC_CPU_FPS, st);
+      if (g < 5000) mc *= g / 5000;
+      lines.push(`Minecraft (バニラ・描画距離12): ${fpsRange(mc, 800)}`);
     }
   }
-  const cpu = selected["CPU"];
-  if (cpu && CPU_SCORES[cpu.name] && gpuLevel(g) - cpuLevel(CPU_SCORES[cpu.name][0]) >= 2) {
+  lines.push("※ 場面やドライバで前後します。正確なところは実測レビューも参考に");
+  if (cpu && st && gpuLevel(g) - cpuLevel(st) >= 2) {
     lines.push("※ CPUがボトルネックになりやすく、上のfpsに届かない場面があります");
   }
   return lines;
