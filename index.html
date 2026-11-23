@@ -54,6 +54,9 @@
   }
   label { font-size: 0.85rem; color: var(--muted); }
   .ok { color: var(--ok); }
+  .filters { display: flex; flex-wrap: wrap; gap: 8px 14px; align-items: center; margin-bottom: 12px; }
+  .filters select { width: auto; margin: 0; }
+  .filters input { width: 140px; }
   .ng { color: var(--ng); }
   .warn { color: var(--warn); }
   .budget-row { display: flex; justify-content: space-between; padding: 4px 0; font-size: 0.95rem; }
@@ -80,6 +83,20 @@
 
   <h2>カスタム構成 (互換性チェック付き)</h2>
   <div class="card">
+    <div class="filters">
+      <span><label>ソケット</label>
+      <select id="f-socket">
+        <option value="">すべて</option>
+        <option>AM4</option><option>AM5</option><option>LGA1700</option><option>LGA1851</option>
+      </select></span>
+      <span><label>メーカー</label>
+      <select id="f-maker">
+        <option value="">すべて</option>
+        <option>AMD</option><option>Intel</option><option>NVIDIA</option>
+      </select></span>
+      <span><label>1パーツの予算上限</label>
+      <input type="number" id="f-budget" placeholder="上限なし (円)" min="0" step="1000"></span>
+    </div>
     <div id="custom-form"></div>
     <div class="total" id="custom-total">合計: ¥0</div>
     <div id="warnings" style="margin-top:8px;"></div>
@@ -353,7 +370,86 @@ function checkBudget() {
   box.innerHTML = html;
 }
 
-// ===== カスタム構成 =====
+// ===== カスタム構成 (シリーズ別グループ + フィルター) =====
+function seriesOf(p) {
+  if (p.cat === "CPU") {
+    if (p.name.startsWith("AMD")) return "AMD Ryzen (" + p.socket + ")";
+    if (p.name.includes("Core Ultra")) return "Intel Core Ultra (" + p.socket + ")";
+    return "Intel Core (" + p.socket + ")";
+  }
+  if (p.cat === "GPU") {
+    const m = p.name.match(/RTX (\d)\d{3}/);
+    if (m) return "GeForce RTX " + m[1] + "0番台";
+    const r = p.name.match(/RX (\d)\d{3}/);
+    if (r) return "Radeon RX " + r[1] + "000番台";
+    if (p.name.includes("Arc")) return "Intel Arc";
+  }
+  if (p.cat === "マザーボード") return p.socket;
+  return "";
+}
+
+const GROUP_ORDER = {
+  "CPU": ["AMD Ryzen (AM5)", "AMD Ryzen (AM4)", "Intel Core Ultra (LGA1851)", "Intel Core (LGA1700)"],
+  "GPU": ["GeForce RTX 50番台", "GeForce RTX 40番台", "GeForce RTX 30番台", "Radeon RX 9000番台", "Radeon RX 7000番台", "Radeon RX 6000番台", "Intel Arc"],
+  "マザーボード": ["AM5", "AM4", "LGA1851", "LGA1700"]
+};
+
+function makerOf(p) {
+  if (p.cat === "CPU") return p.name.startsWith("AMD") ? "AMD" : "Intel";
+  if (p.cat === "GPU") {
+    if (p.name.includes("GeForce")) return "NVIDIA";
+    if (p.name.includes("Radeon")) return "AMD";
+    if (p.name.includes("Arc")) return "Intel";
+  }
+  return "";
+}
+
+function passesFilters(p) {
+  const socket = document.getElementById("f-socket").value;
+  const maker = document.getElementById("f-maker").value;
+  const cap = parseInt(document.getElementById("f-budget").value, 10);
+  if (socket && (p.cat === "CPU" || p.cat === "マザーボード") && p.socket !== socket) return false;
+  if (maker && (p.cat === "CPU" || p.cat === "GPU") && makerOf(p) !== maker) return false;
+  if (!isNaN(cap) && p.price > cap) return false;
+  return true;
+}
+
+function optionOf(p) {
+  const opt = document.createElement("option");
+  opt.value = p.name;
+  opt.textContent = `${p.name} — ${yen(p.price)}`;
+  return opt;
+}
+
+function populateOptions(cat) {
+  const sel = document.getElementById("sel-" + cat);
+  const prev = sel.value;
+  sel.innerHTML = `<option value="">(選ばない)</option>`;
+  const list = PARTS.filter(p => p.cat === cat && passesFilters(p));
+  const groups = {};
+  list.forEach(p => {
+    const g = seriesOf(p) || "その他";
+    (groups[g] = groups[g] || []).push(p);
+  });
+  let names = Object.keys(groups);
+  const order = GROUP_ORDER[cat] || [];
+  names.sort((a, b) => {
+    const ia = order.indexOf(a), ib = order.indexOf(b);
+    return (ia === -1 ? 99 : ia) - (ib === -1 ? 99 : ib);
+  });
+  if (names.length === 1 && names[0] === "その他") {
+    groups["その他"].forEach(p => sel.appendChild(optionOf(p)));
+  } else {
+    names.forEach(g => {
+      const og = document.createElement("optgroup");
+      og.label = g;
+      groups[g].forEach(p => og.appendChild(optionOf(p)));
+      sel.appendChild(og);
+    });
+  }
+  if (prev && list.some(p => p.name === prev)) sel.value = prev;
+}
+
 function renderCustomForm() {
   const form = document.getElementById("custom-form");
   CATEGORIES.forEach(cat => {
@@ -362,15 +458,19 @@ function renderCustomForm() {
     form.appendChild(label);
     const sel = document.createElement("select");
     sel.id = "sel-" + cat;
-    sel.innerHTML = `<option value="">(選ばない)</option>`;
-    PARTS.filter(p => p.cat === cat).forEach(p => {
-      const opt = document.createElement("option");
-      opt.value = p.name;
-      opt.textContent = `${p.name} — ${yen(p.price)}`;
-      sel.appendChild(opt);
-    });
     sel.addEventListener("change", updateCustom);
     form.appendChild(sel);
+    populateOptions(cat);
+  });
+  ["f-socket", "f-maker", "f-budget"].forEach(id => {
+    document.getElementById(id).addEventListener("change", () => {
+      CATEGORIES.forEach(populateOptions);
+      updateCustom();
+    });
+    document.getElementById(id).addEventListener("input", () => {
+      CATEGORIES.forEach(populateOptions);
+      updateCustom();
+    });
   });
 }
 

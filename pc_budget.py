@@ -11,6 +11,7 @@ parts.csv に入っているパーツデータ(価格.comの最安価格が基�
 """
 
 import csv
+import re
 
 # ============================================================
 # 構成パターン
@@ -68,6 +69,35 @@ PATTERNS = {
 
 # カスタム構成モードで選ぶカテゴリの順番
 CATEGORIES = ["CPU", "CPUクーラー", "マザーボード", "メモリ", "GPU", "SSD", "電源", "ケース", "OS"]
+
+# シリーズ別グループの表示順 (カスタム構成モードの見出し用)
+GROUP_ORDER = {
+    "CPU": ["AMD Ryzen (AM5)", "AMD Ryzen (AM4)", "Intel Core Ultra (LGA1851)", "Intel Core (LGA1700)"],
+    "GPU": ["GeForce RTX 50番台", "GeForce RTX 40番台", "GeForce RTX 30番台", "Radeon RX 9000番台", "Radeon RX 7000番台", "Radeon RX 6000番台", "Intel Arc"],
+    "マザーボード": ["AM5", "AM4", "LGA1851", "LGA1700"],
+}
+
+
+def series_of(p):
+    """パーツが属するシリーズ名を返す (グループ表示用)。"""
+    if p["カテゴリ"] == "CPU":
+        if p["名前"].startswith("AMD"):
+            return f"AMD Ryzen ({p['ソケット']})"
+        if "Core Ultra" in p["名前"]:
+            return f"Intel Core Ultra ({p['ソケット']})"
+        return f"Intel Core ({p['ソケット']})"
+    if p["カテゴリ"] == "GPU":
+        m = re.search(r"RTX (\d)\d{3}", p["名前"])
+        if m:
+            return f"GeForce RTX {m.group(1)}0番台"
+        r = re.search(r"RX (\d)\d{3}", p["名前"])
+        if r:
+            return f"Radeon RX {r.group(1)}000番台"
+        if "Arc" in p["名前"]:
+            return "Intel Arc"
+    if p["カテゴリ"] == "マザーボード":
+        return p["ソケット"]
+    return ""
 
 
 def load_parts(path="parts.csv"):
@@ -214,8 +244,20 @@ def custom_build(parts):
     print("カテゴリごとに番号で選んでね。0 は「選ばない」")
     for cat in CATEGORIES:
         options = grouped[cat]
+        # シリーズ別に並べ替える (CPU / GPU / マザーボード)
+        if cat in GROUP_ORDER:
+            order = GROUP_ORDER[cat]
+            options = sorted(
+                options,
+                key=lambda p: order.index(series_of(p)) if series_of(p) in order else 99,
+            )
         print(f"\n[{cat}]")
+        current_group = None
         for i, p in enumerate(options, start=1):
+            g = series_of(p)
+            if cat in GROUP_ORDER and g and g != current_group:
+                print(f"  ― {g} ―")
+                current_group = g
             print(f"  {i}: {p['名前']}  ¥{p['価格']:,}")
         print("  0: 選ばない")
         while True:
