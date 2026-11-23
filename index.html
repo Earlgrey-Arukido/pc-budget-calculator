@@ -4,6 +4,17 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>組めちゃいます！ | 自作PCシミュレーター</title>
+<meta name="description" content="予算を入れるだけで互換性OKな自作PC構成を自動で組めるシミュレーター。性能見積もり・ゲーム別fps目安・中古相場対応。">
+<link rel="icon" href="data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 100 100%22><text y=%22.9em%22 font-size=%2290%22>🖥️</text></svg>">
+<meta property="og:type" content="website">
+<meta property="og:title" content="組めちゃいます！ | 自作PCシミュレーター">
+<meta property="og:description" content="予算を入れるだけで互換性OKな構成を自動提案。性能見積もり・ゲーム別fps目安・中古相場にも対応した初心者向け自作PCツール。">
+<meta property="og:url" content="https://earlgrey-arukido.github.io/pc-budget-calculator/">
+<meta property="og:image" content="https://earlgrey-arukido.github.io/pc-budget-calculator/ogp.png">
+<meta name="twitter:card" content="summary_large_image">
+<meta name="twitter:title" content="組めちゃいます！ | 自作PCシミュレーター">
+<meta name="twitter:description" content="予算を入れるだけで互換性OKな構成を自動提案。性能見積もり・ゲーム別fps目安・中古相場にも対応した初心者向け自作PCツール。">
+<meta name="twitter:image" content="https://earlgrey-arukido.github.io/pc-budget-calculator/ogp.png">
 <style>
   :root {
     --bg: #0f1420;
@@ -64,18 +75,21 @@
   #custom-perf p { margin: 4px 0; }
   footer { color: var(--muted); font-size: 0.8rem; margin-top: 32px; }
   a { color: var(--accent); }
+  .share-btn { display: inline-block; background: #000; color: #fff; padding: 8px 18px; border-radius: 999px; text-decoration: none; font-size: 0.9rem; border: 1px solid #3a4a6b; margin-bottom: 8px; }
 </style>
 </head>
 <body>
 <div class="wrap">
   <h1>🖥️ 組めちゃいます！</h1>
-  <div class="sub">自作PCシミュレーター ・ 価格データ: 価格.com / Amazon等 最安価格 (2026-11-23 時点) が基準 ・ 中古相場も 2026-11-23 調査 ・ by Earlgrey-Arukido</div>
+  <div class="sub">自作PCシミュレーター ・ 価格データ: 価格.com / Amazon等 最安価格 (2026-11-23 時点) が基準 ・ 中古相場も 2026-11-23 調査 ・ by <a href="https://x.com/Earlgrey_VRC" target="_blank" rel="noopener">あるキド (@Earlgrey_VRC)</a></div>
+  <p><a class="share-btn" href="https://twitter.com/intent/tweet?text=%E8%87%AA%E4%BD%9CPC%E3%82%B7%E3%83%9F%E3%83%A5%E3%83%AC%E3%83%BC%E3%82%BF%E3%83%BC%E3%80%8E%E7%B5%84%E3%82%81%E3%81%A1%E3%82%83%E3%81%84%E3%81%BE%E3%81%99%EF%BC%81%E3%80%8F%E4%BA%88%E7%AE%97%E3%82%92%E5%85%A5%E3%82%8C%E3%82%8B%E3%81%A0%E3%81%91%E3%81%A7%E4%BA%92%E6%8F%9B%E6%80%A7OK%E3%81%AA%E6%A7%8B%E6%88%90%E3%82%92%E8%87%AA%E5%8B%95%E3%81%A7%E7%B5%84%E3%82%93%E3%81%A7%E3%81%8F%E3%82%8C%E3%82%8B%E3%82%88&url=https%3A//earlgrey-arukido.github.io/pc-budget-calculator/&hashtags=%E7%B5%84%E3%82%81%E3%81%A1%E3%82%83%E3%81%84%E3%81%BE%E3%81%99%2C%E8%87%AA%E4%BD%9CPC" target="_blank" rel="noopener">𝕏 でシェアする</a></p>
 
   <h2>目的から選ぶ</h2>
   <div class="card">
     <p style="margin-top:0;">やりたいことを選ぶと、おすすめの構成パターンを表示します。</p>
-    <button onclick="pickPurpose('VRChat向け AM4強化')">VRChatを快適に遊びたい</button>
-    <button onclick="pickPurpose('AM5 VRChat本気')">VRChatを本気で遊びたい</button>
+    <button onclick="pickPurpose('VRChat向け')">VRChatを快適に遊びたい</button>
+    <button onclick="pickPurpose('AAA級ゲーム向け')">AAA級ゲームを快適に遊びたい</button>
+    <button onclick="pickPurpose('バチバチ最強')">とにかく最強がいい</button>
     <button onclick="pickPurpose('AM4コスパゲーミング')">ゲーム用を安く組みたい</button>
     <button onclick="pickPurpose('AM5バランス')">長く使える現行世代がいい</button>
     <button onclick="pickPurpose('Intel入門')">Intelで入門したい</button>
@@ -365,7 +379,7 @@ const PATTERNS = {
     "Fractal Design ION Gold 750W",
     "NZXT H5 Flow"
   ],
-  "VRChat向け AM4強化": [
+  "VRChat向け": [
     "AMD Ryzen 5 5600",
     "ASRock B550 Phantom Gaming 4",
     "Corsair DDR4-3200 32GB (16GBx2)",
@@ -383,15 +397,25 @@ const PATTERNS = {
     "Fractal Design ION Gold 750W",
     "NZXT H5 Flow"
   ],
-  "AM5 VRChat本気": [
-    "AMD Ryzen 7 7800X3D",
+  "AAA級ゲーム向け": [
+    "AMD Ryzen 7 9700X",
     "Thermalright Peerless Assassin 120 SE V3",
-    "MSI MAG B650 TOMAHAWK WIFI",
-    "ADATA XPG LANCER BLADE DDR5-6000 32GB (16GBx2)",
-    "ASRock Radeon RX 9070 Challenger 16GB",
-    "Samsung 990 PRO 2TB",
+    "ASRock B650M PG Riptide WiFi White",
+    "DDR5-5600 32GB (16GBx2) 最安クラス",
+    "ASUS PRIME Radeon RX 9070 XT 16GB",
+    "Sandisk WD_Black SN850X 2TB",
     "Corsair RM750e 2025 750W",
     "Fractal Design Pop Air Solid"
+  ],
+  "バチバチ最強": [
+    "AMD Ryzen 7 9800X3D",
+    "Noctua NH-D15 G2",
+    "GIGABYTE X870E AORUS ELITE WIFI7",
+    "Corsair VENGEANCE DDR5-6000 32GB (16GBx2) CL30",
+    "Palit GeForce RTX 5080 Infinity 3 16GB",
+    "Samsung 990 PRO 2TB",
+    "ドスパラセレクト 850W GOLD ATX3.1",
+    "LIAN LI LANCOOL 216"
   ],
   "Intel入門": [
     "Intel Core i5-12400F",
@@ -742,9 +766,10 @@ const CPU_POWER = {
 const WIFI_BOARDS = new Set(["GIGABYTE B850I AORUS PRO"]);
 const PATTERN_INFO = {
   "AM4コスパゲーミング": "予算重視でゲームを遊びたい人向け。前世代AM4で安く組む構成",
-  "VRChat向け AM4強化": "VRChatを快適に遊びたい人向け。AM4のままCPUとGPUを強化した構成",
+  "VRChat向け": "VRChatを快適に遊びたい人向け。AM4のままCPUとGPUを強化した構成",
   "AM5バランス": "今から長く使いたい人向け。現行AM5のバランス型構成",
-  "AM5 VRChat本気": "VRChatを重いワールドでも快適に遊びたい人向け。AM5ハイエンド構成",
+  "AAA級ゲーム向け": "AAA級ゲームを1440p高設定で快適に遊びたい人向け。GPU最優先のAM5構成",
+  "バチバチ最強": "予算度外視の全部盛り。4K・レイトレでも快適な最強クラス構成",
   "Intel入門": "Intelで安く始めたい人向けの入門構成"
 };
 const GPU_LEN = {

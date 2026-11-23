@@ -30,7 +30,7 @@ PATTERNS = {
         "Fractal Design ION Gold 750W",
         "NZXT H5 Flow",
     ],
-    "VRChat向け AM4強化": [
+    "VRChat向け": [
         "AMD Ryzen 5 5600",
         "ASRock B550 Phantom Gaming 4",
         "Corsair DDR4-3200 32GB (16GBx2)",
@@ -48,15 +48,25 @@ PATTERNS = {
         "Fractal Design ION Gold 750W",
         "NZXT H5 Flow",
     ],
-    "AM5 VRChat本気": [
-        "AMD Ryzen 7 7800X3D",
+    "AAA級ゲーム向け": [
+        "AMD Ryzen 7 9700X",
         "Thermalright Peerless Assassin 120 SE V3",
-        "MSI MAG B650 TOMAHAWK WIFI",
-        "ADATA XPG LANCER BLADE DDR5-6000 32GB (16GBx2)",
-        "ASRock Radeon RX 9070 Challenger 16GB",
-        "Samsung 990 PRO 2TB",
+        "ASRock B650M PG Riptide WiFi White",
+        "DDR5-5600 32GB (16GBx2) 最安クラス",
+        "ASUS PRIME Radeon RX 9070 XT 16GB",
+        "Sandisk WD_Black SN850X 2TB",
         "Corsair RM750e 2025 750W",
         "Fractal Design Pop Air Solid",
+    ],
+    "バチバチ最強": [
+        "AMD Ryzen 7 9800X3D",
+        "Noctua NH-D15 G2",
+        "GIGABYTE X870E AORUS ELITE WIFI7",
+        "Corsair VENGEANCE DDR5-6000 32GB (16GBx2) CL30",
+        "Palit GeForce RTX 5080 Infinity 3 16GB",
+        "Samsung 990 PRO 2TB",
+        "ドスパラセレクト 850W GOLD ATX3.1",
+        "LIAN LI LANCOOL 216",
     ],
     "Intel入門": [
         "Intel Core i5-12400F",
@@ -130,9 +140,10 @@ WIFI_BOARDS = {"GIGABYTE B850I AORUS PRO"}
 # パターンの説明 (どんな人向けか)
 PATTERN_INFO = {
     "AM4コスパゲーミング": "予算重視でゲームを遊びたい人向け。前世代AM4で安く組む構成",
-    "VRChat向け AM4強化": "VRChatを快適に遊びたい人向け。AM4のままCPUとGPUを強化した構成",
+    "VRChat向け": "VRChatを快適に遊びたい人向け。AM4のままCPUとGPUを強化した構成",
     "AM5バランス": "今から長く使いたい人向け。現行AM5のバランス型構成",
-    "AM5 VRChat本気": "VRChatを重いワールドでも快適に遊びたい人向け。AM5ハイエンド構成",
+    "AAA級ゲーム向け": "AAA級ゲームを1440p高設定で快適に遊びたい人向け。GPU最優先のAM5構成",
+    "バチバチ最強": "予算度外視の全部盛り。4K・レイトレでも快適な最強クラス構成",
     "Intel入門": "Intelで安く始めたい人向けの入門構成",
 }
 
