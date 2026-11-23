@@ -11,6 +11,7 @@ parts.csv に入っているパーツデータ(価格.comの最安価格が基�
 """
 
 import csv
+import math
 import re
 import urllib.parse
 
@@ -84,6 +85,158 @@ GROUP_ORDER = {
 # CPUは parts.csv の「名前」と完全一致で引く。
 # GPUは製品名に含まれるチップ名で引く (ボードメーカーで性能はほぼ同じ)。
 # ============================================================
+# 価格・中古相場データの調査日
+DATA_DATE = "2026-11-23"
+
+# GPUの消費電力 (TDP・メーカー公称の目安)
+GPU_TDP = [
+    ("RTX 5090", 575), ("RTX 5080", 360), ("RTX 5070 Ti", 300), ("RTX 5070", 250),
+    ("RTX 5060 Ti", 180), ("RTX 5060", 145), ("RTX 5050", 130), ("RTX 4060", 115),
+    ("RTX 3090 Ti", 450), ("RTX 3090", 350), ("RTX 3080 Ti", 350), ("RTX 3080", 320),
+    ("RTX 3070 Ti", 290), ("RTX 3070", 220), ("RTX 3060 Ti", 200), ("RTX 3060", 170),
+    ("RTX 3050", 130),
+    ("RX 9070 XT", 304), ("RX 9070", 220), ("RX 9060 XT", 182),
+    ("RX 7900 XTX", 355), ("RX 7900 XT", 315), ("RX 7900 GRE", 260), ("RX 7800 XT", 263),
+    ("RX 7700 XT", 245), ("RX 7600 XT", 190), ("RX 7600", 165),
+    ("RX 6950 XT", 335), ("RX 6900 XT", 300), ("RX 6800 XT", 300), ("RX 6800", 250),
+    ("RX 6750 XT", 250), ("RX 6700 XT", 230), ("RX 6650 XT", 180), ("RX 6600 XT", 160),
+    ("RX 6600", 132), ("RX 6500 XT", 107), ("RX 6400", 53), ("RX 580", 185),
+    ("Arc B580", 190), ("Arc B570", 150), ("Arc A770", 225), ("Arc A750", 225),
+    ("Arc A580", 175), ("Arc A380", 75), ("Arc A310", 75),
+]
+
+# CPUの最大消費電力の目安 (PPT / PL2 相当)
+CPU_POWER = {
+    "Ryzen 7 5800X": 142, "Ryzen 7 5800XT": 142, "Ryzen 7 5800X3D": 142,
+    "Ryzen 9 5900X": 142, "Ryzen 9 5900XT": 142, "Ryzen 7 3800XT": 142,
+    "Ryzen 9 3900XT": 171, "Ryzen 5 5600X": 88, "Ryzen 5 5600XT": 88,
+    "Ryzen 5 5600": 88, "Ryzen 5 5500": 88, "Ryzen 7 5700X": 88, "Ryzen 5 4500": 88,
+    "Ryzen 5 7600X": 142, "Ryzen 7 7700X": 142, "Ryzen 5 7500F": 88,
+    "Ryzen 5 7600": 88, "Ryzen 7 7700": 88, "Ryzen 7 7800X3D": 162,
+    "Ryzen 5 8500G": 88, "Ryzen 5 8600G": 88, "Ryzen 7 8700G": 88,
+    "Ryzen 5 9600X": 88, "Ryzen 7 9700X": 88, "Ryzen 7 9800X3D": 162,
+    "Ryzen 9 9900X": 162, "Ryzen 9 9900X3D": 162, "Ryzen 9 9950X": 230,
+    "Ryzen 9 9950X3D": 230, "Ryzen 9 7900X3D": 162, "Ryzen 9 7950X3D": 162,
+    "Core i5-12400F": 117, "Core i5-12400": 117, "Core i5-13400F": 148,
+    "Core i3-12100F": 89, "Core i3-14100": 110, "Core i5-14600K": 181,
+    "Core i7-14700K": 219, "Core Ultra 5 225": 121, "Core Ultra 5 245KF": 159,
+    "Core Ultra 5 245K": 159, "Core Ultra 7 265KF": 250, "Core Ultra 7 265K": 250,
+    "Core Ultra 9 285K": 250,
+}
+
+# 名前にWi-Fi表記が無いが実際は搭載しているボード
+WIFI_BOARDS = {"GIGABYTE B850I AORUS PRO"}
+
+# パターンの説明 (どんな人向けか)
+PATTERN_INFO = {
+    "AM4コスパゲーミング": "予算重視でゲームを遊びたい人向け。前世代AM4で安く組む構成",
+    "VRChat向け AM4強化": "VRChatを快適に遊びたい人向け。AM4のままCPUとGPUを強化した構成",
+    "AM5バランス": "今から長く使いたい人向け。現行AM5のバランス型構成",
+    "AM5 VRChat本気": "VRChatを重いワールドでも快適に遊びたい人向け。AM5ハイエンド構成",
+    "Intel入門": "Intelで安く始めたい人向けの入門構成",
+}
+
+# GPUのカード長 (mm・メーカー公式/価格.com仕様欄で確認。2026-11-23調査)
+GPU_LENGTH = {
+    "ASRock Radeon RX 7600 Steel Legend 8GB OC": 303,
+    "Colorful GeForce RTX 5060 Battle AX DUO 8GB": 231,
+    "Colorful GeForce RTX 5060 Gaming DUO 8GB": 200,
+    "玄人志向 Radeon RX 7800 XT 16GB": 322,
+    "ASRock Radeon RX 9060 XT Challenger 16GB OC": 249,
+    "ASRock Radeon RX 9070 Challenger 16GB": 290,
+    "PNY GeForce RTX 5060 Ti 16GB OC Dual Fan": 245,
+    "Palit GeForce RTX 5070 Infinity 3 12GB": 292,
+    "GIGABYTE AORUS GeForce RTX 5090 ICE 32GB": 360,
+    "Palit GeForce RTX 5080 Infinity 3 16GB": 332,
+    "Palit GeForce RTX 5070 Ti GamingPro-S 16GB": 332,
+    "ASUS PRIME Radeon RX 9070 XT 16GB": 312,
+    "Colorful GeForce RTX 5060 Ti Gaming DUO 8GB": 200,
+    "玄人志向 Radeon RX 9060 XT 8GB": 200,
+    "MSI GeForce RTX 4060 VENTUS 2X BLACK 8G OC": 199,
+    "ASRock Intel Arc B570 Challenger 10GB OC": 249,
+    "Colorful GeForce RTX 5050 Gaming DUO 8GB": 200,
+    "MSI GeForce RTX 3090 Ti SUPRIM X 24G": 338,
+    "MSI GeForce RTX 3090 GAMING X TRIO 24G": 323,
+    "GAINWARD GeForce RTX 3080 Ti Phoenix 12GB": 294,
+    "MSI GeForce RTX 3080 GAMING Z TRIO 12G": 323,
+    "玄人志向 GALAKURO GeForce RTX 3070 Ti 8GB": 285,
+    "玄人志向 GALAKURO GeForce RTX 3070 8GB OC": 285,
+    "玄人志向 GALAKURO GeForce RTX 3060 Ti 8GB WHITE": 285,
+    "Colorful GeForce RTX 3060 Battle AX DUO 12GB": 254,
+    "MSI GeForce RTX 3060 VENTUS 2X 8G OC": 235,
+    "MSI GeForce RTX 3050 VENTUS 2X XS 8G OC": 205,
+    "GIGABYTE GeForce RTX 3050 WINDFORCE OC 6GB": 191,
+    "XFX Radeon RX 7900 XT 20GB": 277,
+    "GIGABYTE Radeon RX 7600 XT GAMING OC 16GB": 282,
+    "MSI Radeon RX 6950 XT GAMING X TRIO 16G": 325,
+    "MSI Radeon RX 6900 XT GAMING X TRIO 16G": 324,
+    "MSI Radeon RX 6800 XT GAMING X TRIO 16G": 324,
+    "ASUS ROG STRIX Radeon RX 6800 16GB": 320,
+    "MSI Radeon RX 6750 XT MECH 2X 12G OC": 249,
+    "MSI Radeon RX 6700 XT MECH 2X 12G OC": 247,
+    "SAPPHIRE PULSE Radeon RX 6650 XT 8GB": 240,
+    "MSI Radeon RX 6600 XT GAMING X 8G": 277,
+    "XFX Radeon RX 6600 8GB": 241,
+    "MSI Radeon RX 6500 XT MECH 2X 4G OC": 172,
+    "玄人志向 Radeon RX 6400 LP 4GB": 152,
+    "ASRock Intel Arc A770 Phantom Gaming D 8GB OC": 305,
+    "SPARKLE Intel Arc A750 TITAN OC 8GB": 306,
+    "SPARKLE Intel Arc A380 ELF 6GB": 153,
+    "玄人志向 Intel Arc A310 4GB": 145,
+    "SAPPHIRE NITRO+ Radeon RX 7700 XT 12G": 320,
+    "Acer Predator BiFrost Intel Arc A770 16GB OC": 267,
+    "XFX MERC 310 Radeon RX 7900 XTX 24GB": 344,
+    "GIGABYTE Radeon RX 7900 GRE GAMING OC 16GB": 302,
+    "玄人志向 Intel Arc B580 12GB": 242,
+    "ASRock Intel Arc A580 Challenger 8GB OC": 271,
+    "ASRock Phantom Gaming D Radeon RX 580 8GB": 237,
+}
+
+# ケースの上限 (GPU最大長mm, CPUクーラー最大高mm)。ファン搭載時の実用値で統一
+CASE_LIMITS = {
+    "ZALMAN Z3 Iceberg Black": (315, 163),
+    "MONTECH XR": (420, 175),
+    "NZXT H3 Flow": (352, 170),
+    "NZXT H5 Flow": (410, 170),
+    "Fractal Design Pop Air Solid": (405, 170),
+    "Corsair 3500X Tempered Glass Black": (410, 170),
+    "LIAN LI LANCOOL 216": (392, 180),
+    "MONTECH KING 95 PRO": (420, 175),
+    "Fractal Design North White": (355, 170),
+    "Fractal Design Terra": (322, 77),
+    "DEEPCOOL CH260": (388, 174),
+}
+
+# CPUクーラーの高さ (mm)。簡易水冷は None (高さチェック対象外)
+COOLER_HEIGHT = {
+    "サイズ 虎徹 MARK4 SCKTT-4000": 155,
+    "DEEPCOOL AG400 G2": 152,
+    "DEEPCOOL AK400": 155,
+    "Thermalright Peerless Assassin 120 SE V3": 155,
+    "DEEPCOOL LE240 V2": None,
+    "玄人志向 KURO-AIOWC360/V2": None,
+    "Noctua NH-U12A": 158,
+    "Scythe FUMA 3": 154,
+    "Fractal Design Lumen S28 v2": None,
+    "DEEPCOOL AK620": 160,
+    "Noctua NH-D15 G2": 168,
+    "Thermalright Phantom Spirit 120 SE": 154,
+}
+
+# マザーボードのメモリスロット数
+MB_SLOTS = {
+    "ASRock B550M-HDV": 2, "ASRock B550 Phantom Gaming 4": 4,
+    "MSI B550M PRO-VDH WIFI": 4, "ASRock B650M PG Riptide WiFi White": 4,
+    "MSI MAG B650 TOMAHAWK WIFI": 4, "ASRock B760M-HDV/M.2 D4": 2,
+    "MSI B760 GAMING PLUS WIFI": 4, "ASUS PRIME A520M-K ARGB-CSM": 2,
+    "ASUS PRIME H610M-R D4": 2, "ASUS PRIME A620M-K-CSM": 2,
+    "ASRock B850M-X WiFi R2.0": 2, "ASUS PRIME B840-PLUS WIFI-CSM": 4,
+    "GIGABYTE B860 DS3H": 4, "ASUS PRIME Z890-P WIFI-CSM": 4,
+    "MSI PRO Z790-P WIFI": 4, "ASRock X870 Pro-A WiFi": 4,
+    "GIGABYTE B850I AORUS PRO": 2, "GIGABYTE X870E AORUS ELITE WIFI7": 4,
+    "MSI MPG B650I EDGE WIFI": 2,
+}
+
 CPU_SCORES = {
     "AMD Ryzen 5 5500": (3062, 19246),
     "AMD Ryzen 5 5600": (3254, 21489),
@@ -192,6 +345,56 @@ def gpu_score_for(part_name):
         if chip in part_name:
             return score
     return None
+
+
+def gpu_tdp_for(part_name):
+    """GPU製品名からチップを判定して TDP (W) を返す。分からなければ None。"""
+    if "RTX 3050" in part_name and "6GB" in part_name:
+        return 70  # RTX 3050 6GB版は低消費電力モデル
+    for chip, tdp in GPU_TDP:
+        if chip in part_name:
+            return tdp
+    return None
+
+
+def cpu_power_for(part_name):
+    """CPU製品名から最大消費電力の目安 (W) を返す。分からなければ None。"""
+    for model, watts in CPU_POWER.items():
+        if model in part_name:
+            return watts
+    return None
+
+
+def psu_wattage(p):
+    """電源パーツの名前から容量 (W) を読み取る。"""
+    m = re.search(r"(\d{3,4})\s*W", p["名前"])
+    return int(m.group(1)) if m else None
+
+
+def power_check(selected):
+    """電源容量チェック。結果の行リストを返す (必要なパーツが揃っていない場合は空)。"""
+    gpu = selected.get("GPU")
+    cpu = selected.get("CPU")
+    psu = selected.get("電源")
+    if not (gpu and cpu and psu):
+        return []
+    gt = gpu_tdp_for(gpu["名前"])
+    cw = cpu_power_for(cpu["名前"])
+    w = psu_wattage(psu)
+    if gt is None or cw is None or w is None:
+        return []
+    est = gt + cw + 100  # +100W はマザーボード・SSD・ファン等の分
+    rec = math.ceil(est * 1.25 / 50) * 50  # 推奨容量 = 推定最大×1.25 を50W単位で切り上げ
+    lines = [f"🔌 電源チェック: 推定最大消費電力 約{est}W (GPU {gt}W + CPU {cw}W + その他 100W) / 推奨電源 {rec}W / 選択中の電源 {w}W"]
+    if w < est:
+        lines.append("  ⚠ 電源容量が推定最大消費電力を下回っています。容量の大きい電源を推奨します")
+    elif w < rec:
+        lines.append("  △ 最低ラインは満たしますが、電源容量の余裕が少なめです")
+    else:
+        lines.append("  ✓ 電源容量に余裕があります")
+    if "RTX 50" in gpu["名前"]:
+        lines.append("  ℹ RTX 50系は12V-2x6コネクタを使います (変換アダプタはGPUに付属)。ATX 3.x対応電源だとケーブル1本で接続できます")
+    return lines
 
 
 def cpu_level(single):
@@ -368,6 +571,8 @@ def pattern_selected(pattern_name, parts):
 def show_pattern(pattern_name, parts):
     """構成パターンの内訳と合計を表示する。"""
     print(f"\n=== {pattern_name} ===")
+    if pattern_name in PATTERN_INFO:
+        print(f"  {PATTERN_INFO[pattern_name]}")
     for part_name in PATTERNS[pattern_name]:
         p = parts[part_name]
         print(f"  [{p['カテゴリ']}] {p['名前']}  ¥{p['価格']:,}")
@@ -377,6 +582,8 @@ def show_pattern(pattern_name, parts):
         for w in warnings:
             print(f"  ⚠ {w}")
     for line in perf_estimate(pattern_selected(pattern_name, parts)):
+        print(f"  {line}")
+    for line in power_check(pattern_selected(pattern_name, parts)):
         print(f"  {line}")
     links = buy_links(pattern_selected(pattern_name, parts))
     if links:
@@ -478,6 +685,35 @@ def check_compatibility(selected):
             warnings.append(
                 f"{mb['フォームファクタ']}マザーボードは{case['フォームファクタ']}まで対応のケースに入りません!"
             )
+    # Wi-Fi非搭載ボードの案内
+    if mb and mb["名前"] not in WIFI_BOARDS and not re.search(r"wifi", mb["名前"], re.I):
+        warnings.append(
+            "ℹ このマザーボードはWi-Fi非搭載です。無線LANで使う場合は、有線接続かWi-Fi子機 (USB/PCIe) が別途必要です"
+        )
+    # GPUの長さとケースの干渉
+    if gpu and case:
+        gl = GPU_LENGTH.get(gpu["名前"])
+        lim = CASE_LIMITS.get(case["名前"])
+        if gl and lim and gl > lim[0]:
+            warnings.append(
+                f"GPUの長さ ({gl}mm) がケースの搭載可能最大長 ({lim[0]}mm) を超えています! 入りません"
+            )
+    # CPUクーラーの高さとケースの干渉 (簡易水冷は対象外)
+    if cooler and case:
+        ch = COOLER_HEIGHT.get(cooler["名前"])
+        lim = CASE_LIMITS.get(case["名前"])
+        if ch and lim and ch > lim[1]:
+            warnings.append(
+                f"CPUクーラーの高さ ({ch}mm) がケースの対応最大高 ({lim[1]}mm) を超えています! サイドパネルが閉まりません"
+            )
+    # メモリの枚数とマザーボードのスロット数
+    if mem and mb:
+        m = re.search(r"x(\d+)", mem["名前"])
+        slots = MB_SLOTS.get(mb["名前"])
+        if m and slots and int(m.group(1)) > slots:
+            warnings.append(
+                f"メモリが{int(m.group(1))}枚組なのに、マザーボードのメモリスロットは{slots}つだけです! 全部は刺さりません"
+            )
     return warnings
 
 
@@ -550,6 +786,10 @@ def custom_build(parts):
         for line in lines:
             print(f"  {line}")
 
+    # 電源チェック
+    for line in power_check(selected):
+        print(f"  {line}")
+
     # 購入リンクまとめ
     links = buy_links(selected)
     if links:
@@ -557,11 +797,22 @@ def custom_build(parts):
         for line in links:
             print(f"  {line}")
 
+    # 共有用テキスト
+    print("\n--- 共有用テキスト (コピーして友達への相談に使えるよ) ---")
+    print("【自作PC構成】")
+    for cat in CATEGORIES:
+        if cat in selected:
+            p = selected[cat]
+            print(f"[{cat}] {p['名前']} ¥{price_of(p, mode):,}")
+    print(f"合計{' (中古相場)' if mode == 'used' else ''}: ¥{total:,}")
+    for line in perf_estimate(selected):
+        print(line)
+
 
 def main():
     parts = load_parts()
     print("自作PC予算計算ツール")
-    print("価格データ: 価格.com / Amazon等 最安価格 (2026-11-23 時点) が基準")
+    print(f"価格データ: 価格.com / Amazon等 最安価格 ({DATA_DATE} 時点) が基準。中古相場も {DATA_DATE} 調査")
     while True:
         print("\n何をする?")
         print("  1: 構成パターンの合計を見る")
