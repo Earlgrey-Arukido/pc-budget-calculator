@@ -21,6 +21,15 @@ import urllib.parse
 # パターンを増やしたいときは、ここに書き足すだけでOK。
 # ============================================================
 PATTERNS = {
+    "10万以下 中古ミックス": [
+        "AMD Ryzen 5 5600",
+        "ASRock B550M-HDV",
+        "Silicon Power DDR4-3200 16GB (8GBx2)",
+        "MSI Radeon RX 6700 XT MECH 2X 12G OC",
+        "crucial P3 Plus 1TB",
+        "GIGABYTE P550B 550W",
+        "ZALMAN Z3 Iceberg Black",
+    ],
     "AM4コスパゲーミング": [
         "AMD Ryzen 5 5600",
         "ASRock B550M-HDV",
@@ -139,6 +148,7 @@ WIFI_BOARDS = {"GIGABYTE B850I AORUS PRO"}
 
 # パターンの説明 (どんな人向けか)
 PATTERN_INFO = {
+    "10万以下 中古ミックス": "中古パーツを活用して10万円以下でも本格的に遊べる性能を狙う構成。中古相場は変動するので購入前に実際の価格と在庫の確認を",
     "AM4コスパゲーミング": "予算重視でゲームを遊びたい人向け。前世代AM4で安く組む構成",
     "VRChat向け": "VRChatを快適に遊びたい人向け。AM4のままCPUとGPUを強化した構成",
     "AM5バランス": "今から長く使いたい人向け。現行AM5のバランス型構成",
@@ -695,6 +705,8 @@ def auto_build_interactive(parts):
         if cat in sel:
             print(f"  [{cat}] {sel[cat]['名前']}  ¥{price(sel[cat]):,}")
     print(f"  合計: ¥{total:,}")
+    if mode == "used":
+        print("  ⚠ 中古相場で計算しています。実際の価格は高くなったり、在庫がない場合があります")
     if total > budget:
         print("  ※最安クラスの組み合わせでも予算を超えてしまいます")
     warnings = check_compatibility(sel)
@@ -870,11 +882,38 @@ def price_of(p, mode):
     return p["価格"]
 
 
+# 中古相場を活用するパターン (中古価格があるパーツは中古相場で計算する)
+PATTERN_USED_MIX = {"10万以下 中古ミックス"}
+
+
+def pattern_price(pattern_name, p):
+    """パターン内でのパーツ価格。中古ミックスパターンは中古相場があればそちらを使う。"""
+    if pattern_name in PATTERN_USED_MIX:
+        u = price_of(p, "used")
+        if u is not None:
+            return u
+    return p["価格"]
+
+
+def pattern_used_parts(pattern_name, parts):
+    """パターン内で中古価格が適用されるパーツのリスト。"""
+    if pattern_name not in PATTERN_USED_MIX:
+        return []
+    return [parts[n] for n in PATTERNS[pattern_name] if price_of(parts[n], "used") is not None]
+
+
+def used_price_note(used_parts):
+    """中古パーツが含まれる構成への注意書き。"""
+    names = "、".join(f"{p['カテゴリ']}: {p['名前']}" for p in used_parts)
+    return (f"⚠ この構成には中古パーツが含まれています ({names})。"
+            f"価格は中古相場 ({DATA_DATE} 調査) で、実際の価格は高くなったり、在庫がない場合があります")
+
+
 def pattern_total(pattern_name, parts):
     """1つの構成パターンの合計金額を計算する。"""
     total = 0
     for part_name in PATTERNS[pattern_name]:
-        total += parts[part_name]["価格"]
+        total += pattern_price(pattern_name, parts[part_name])
     return total
 
 
@@ -892,10 +931,15 @@ def show_pattern(pattern_name, parts):
     print(f"\n=== {pattern_name} ===")
     if pattern_name in PATTERN_INFO:
         print(f"  {PATTERN_INFO[pattern_name]}")
+    used_names = {p["名前"] for p in pattern_used_parts(pattern_name, parts)}
     for part_name in PATTERNS[pattern_name]:
         p = parts[part_name]
-        print(f"  [{p['カテゴリ']}] {p['名前']}  ¥{p['価格']:,}")
+        tag = " (中古相場)" if p["名前"] in used_names else ""
+        print(f"  [{p['カテゴリ']}] {p['名前']}  ¥{pattern_price(pattern_name, p):,}{tag}")
     print(f"  合計: ¥{pattern_total(pattern_name, parts):,}")
+    _used = pattern_used_parts(pattern_name, parts)
+    if _used:
+        print(f"  {used_price_note(_used)}")
     warnings = check_compatibility(pattern_selected(pattern_name, parts))
     if warnings:
         for w in warnings:
@@ -905,9 +949,9 @@ def show_pattern(pattern_name, parts):
     for line in power_check(pattern_selected(pattern_name, parts)):
         print(f"  {line}")
     _sel = pattern_selected(pattern_name, parts)
-    for line in budget_balance(_sel, pattern_total(pattern_name, parts), lambda p: p["価格"]):
+    for line in budget_balance(_sel, pattern_total(pattern_name, parts), lambda p: pattern_price(pattern_name, p)):
         print(f"  {line}")
-    for line in upgrade_suggestion(_sel, parts, lambda p: p["価格"]):
+    for line in upgrade_suggestion(_sel, parts, lambda p: pattern_price(pattern_name, p)):
         print(f"  {line}")
     links = buy_links(pattern_selected(pattern_name, parts))
     if links:
@@ -1101,6 +1145,8 @@ def custom_build(parts):
         else:
             print(f"  [{cat}] (なし)")
     print(f"  合計{' (中古相場)' if mode == 'used' else ''}: ¥{total:,}")
+    if mode == "used":
+        print("  ⚠ 中古相場で計算しています。実際の価格は高くなったり、在庫がない場合があります")
 
     # 互換性チェック
     print("\n--- 互換性チェック ---")

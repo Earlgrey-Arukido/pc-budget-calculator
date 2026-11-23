@@ -87,6 +87,7 @@
   <h2>目的から選ぶ</h2>
   <div class="card">
     <p style="margin-top:0;">やりたいことを選ぶと、おすすめの構成パターンを表示します。</p>
+    <button onclick="pickPurpose('10万以下 中古ミックス')">10万円以下で組みたい</button>
     <button onclick="pickPurpose('VRChat向け')">VRChatを快適に遊びたい</button>
     <button onclick="pickPurpose('AAA級ゲーム向け')">AAA級ゲームを快適に遊びたい</button>
     <button onclick="pickPurpose('バチバチ最強')">とにかく最強がいい</button>
@@ -370,6 +371,15 @@ const PARTS = [
 ];
 
 const PATTERNS = {
+  "10万以下 中古ミックス": [
+    "AMD Ryzen 5 5600",
+    "ASRock B550M-HDV",
+    "Silicon Power DDR4-3200 16GB (8GBx2)",
+    "MSI Radeon RX 6700 XT MECH 2X 12G OC",
+    "crucial P3 Plus 1TB",
+    "GIGABYTE P550B 550W",
+    "ZALMAN Z3 Iceberg Black"
+  ],
   "AM4コスパゲーミング": [
     "AMD Ryzen 5 5600",
     "ASRock B550M-HDV",
@@ -434,8 +444,32 @@ PARTS.forEach(p => byName[p.name] = p);
 
 function yen(n) { return "¥" + n.toLocaleString("ja-JP"); }
 
+const PATTERN_USED_MIX = new Set(["10万以下 中古ミックス"]);
+
+function usedPrice(p) {
+  return p.usedOnly ? p.price : (p.used !== undefined ? p.used : null);
+}
+
+function patternPriceOf(name, p) {
+  if (PATTERN_USED_MIX.has(name)) {
+    const u = usedPrice(p);
+    if (u !== null) return u;
+  }
+  return p.price;
+}
+
+function patternUsedParts(name) {
+  if (!PATTERN_USED_MIX.has(name)) return [];
+  return PATTERNS[name].map(n => byName[n]).filter(p => usedPrice(p) !== null);
+}
+
+function usedPriceNote(usedParts) {
+  const names = usedParts.map(p => `${p.cat}: ${p.name}`).join("、");
+  return `⚠ この構成には中古パーツが含まれています (${names})。価格は中古相場 (2026-11-23 調査) で、実際の価格は高くなったり、在庫がない場合があります`;
+}
+
 function patternTotal(name) {
-  return PATTERNS[name].reduce((sum, partName) => sum + byName[partName].price, 0);
+  return PATTERNS[name].reduce((sum, partName) => sum + patternPriceOf(name, byName[partName]), 0);
 }
 
 // ===== 構成パターンの表示 (選択式) =====
@@ -455,17 +489,21 @@ function showSelectedPattern() {
   const name = document.getElementById("pattern-select").value;
   const box = document.getElementById("pattern-detail");
   let rows = "";
+  const usedNames = new Set(patternUsedParts(name).map(p => p.name));
   PATTERNS[name].forEach(partName => {
     const p = byName[partName];
-    rows += `<tr><td class="cat">${p.cat}</td><td>${p.name}</td><td class="price">${yen(p.price)}</td></tr>`;
+    const tag = usedNames.has(p.name) ? ` <span style="color:var(--warn)">(中古相場)</span>` : "";
+    rows += `<tr><td class="cat">${p.cat}</td><td>${p.name}${tag}</td><td class="price">${yen(patternPriceOf(name, p))}</td></tr>`;
   });
   const desc = PATTERN_INFO[name] ? `<p>${PATTERN_INFO[name]}</p>` : "";
+  const usedPs = patternUsedParts(name);
+  const note = usedPs.length ? `<p class="warn">${usedPriceNote(usedPs)}</p>` : "";
   const power = powerLines(patternSelected(name)).map(l => `<p>${l}</p>`).join("");
-  const extraLines = balanceLines(patternSelected(name), patternTotal(name), p => p.price);
-  const upLine = upgradeSuggestion(patternSelected(name), p => p.price);
+  const extraLines = balanceLines(patternSelected(name), patternTotal(name), p => patternPriceOf(name, p));
+  const upLine = upgradeSuggestion(patternSelected(name), p => patternPriceOf(name, p));
   if (upLine) extraLines.push(upLine);
   const extra = extraLines.map(l => `<p>${l}</p>`).join("");
-  box.innerHTML = `<div class="card"><h3>${name}</h3>${desc}<table>${rows}</table><div class="total">合計: ${yen(patternTotal(name))}</div>${perfHtml(patternSelected(name))}${power}${extra}<button onclick="showPatternLinks()" style="margin-top:10px;">🛒 購入リンクをまとめる</button> <button onclick="copyPattern()" style="margin-top:10px;">📋 構成をコピー</button><div id="pattern-links" style="margin-top:8px;"></div><div id="pattern-copy" style="margin-top:8px;"></div></div>`;
+  box.innerHTML = `<div class="card"><h3>${name}</h3>${desc}<table>${rows}</table><div class="total">合計: ${yen(patternTotal(name))}</div>${note}${perfHtml(patternSelected(name))}${power}${extra}<button onclick="showPatternLinks()" style="margin-top:10px;">🛒 購入リンクをまとめる</button> <button onclick="copyPattern()" style="margin-top:10px;">📋 構成をコピー</button><div id="pattern-links" style="margin-top:8px;"></div><div id="pattern-copy" style="margin-top:8px;"></div></div>`;
 }
 
 function pickPurpose(name) {
@@ -765,6 +803,7 @@ const CPU_POWER = {
 };
 const WIFI_BOARDS = new Set(["GIGABYTE B850I AORUS PRO"]);
 const PATTERN_INFO = {
+  "10万以下 中古ミックス": "中古パーツを活用して10万円以下でも本格的に遊べる性能を狙う構成。中古相場は変動するので購入前に実際の価格と在庫の確認を",
   "AM4コスパゲーミング": "予算重視でゲームを遊びたい人向け。前世代AM4で安く組む構成",
   "VRChat向け": "VRChatを快適に遊びたい人向け。AM4のままCPUとGPUを強化した構成",
   "AM5バランス": "今から長く使いたい人向け。現行AM5のバランス型構成",
@@ -1076,7 +1115,8 @@ function runAuto() {
   if (up) extra.push(up);
   const extraHtml = extra.map(l => `<p>${l}</p>`).join("");
   const over = total > budget ? `<p class="warn">※最安クラスの組み合わせでも予算を超えてしまいます</p>` : "";
-  box.innerHTML = `<h3>予算 ${yen(budget)} の自動構成${mode === "used" ? " (中古相場)" : ""}</h3><table>${rows}</table><div class="total">合計: ${yen(total)}</div>${over}${warnHtml}${perfHtml(sel)}${power}${extraHtml}<div style="margin-top:8px;">${buyLinksHtml(sel)}</div>`;
+  const usedNote = mode === "used" ? `<p class="warn">⚠ 中古相場で計算しています。実際の価格は高くなったり、在庫がない場合があります</p>` : "";
+  box.innerHTML = `<h3>予算 ${yen(budget)} の自動構成${mode === "used" ? " (中古相場)" : ""}</h3><table>${rows}</table><div class="total">合計: ${yen(total)}</div>${over}${usedNote}${warnHtml}${perfHtml(sel)}${power}${extraHtml}<div style="margin-top:8px;">${buyLinksHtml(sel)}</div>`;
 }
 
 // ===== 構成の共有テキスト =====
@@ -1111,7 +1151,7 @@ function copyCustom() {
 
 function copyPattern() {
   const name = document.getElementById("pattern-select").value;
-  copyText(shareText(patternSelected(name), patternTotal(name), "", p => p.price), "pattern-copy");
+  copyText(shareText(patternSelected(name), patternTotal(name), "", p => patternPriceOf(name, p)), "pattern-copy");
 }
 
 function cpuLevel(s) { return s >= 4400 ? 5 : s >= 3900 ? 4 : s >= 3400 ? 3 : s >= 3000 ? 2 : s >= 2600 ? 1 : 0; }
@@ -1212,6 +1252,9 @@ function updateCustom() {
   const extra = balanceLines(selected, total, priceOf);
   const up = upgradeSuggestion(selected, priceOf);
   if (up) extra.push(up);
+  if (mode === "used" && Object.keys(selected).length > 0) {
+    extra.push("⚠ 中古相場で計算しています。実際の価格は高くなったり、在庫がない場合があります");
+  }
   document.getElementById("custom-extra").innerHTML = extra.map(l => `<p>${l}</p>`).join("");
 }
 
