@@ -45,10 +45,29 @@ PATTERNS = {
         "Fractal Design ION Gold 750W",
         "NZXT H5 Flow",
     ],
+    "AM5 VRChat本気": [
+        "AMD Ryzen 7 7800X3D",
+        "Thermalright Peerless Assassin 120 SE V3",
+        "MSI MAG B650 TOMAHAWK WIFI",
+        "ADATA XPG LANCER BLADE DDR5-6000 32GB (16GBx2)",
+        "ASRock Radeon RX 9070 Challenger 16GB",
+        "Samsung 990 PRO 2TB",
+        "Corsair RM750e 2025 750W",
+        "Fractal Design Pop Air Solid",
+    ],
+    "Intel入門": [
+        "Intel Core i5-12400F",
+        "ASRock B760M-HDV/M.2 D4",
+        "Silicon Power DDR4-3200 16GB (8GBx2)",
+        "ASRock Radeon RX 7600 Steel Legend 8GB OC",
+        "WD_BLACK SN7100 1TB",
+        "GIGABYTE P550B 550W",
+        "MONTECH XR",
+    ],
 }
 
 # カスタム構成モードで選ぶカテゴリの順番
-CATEGORIES = ["CPU", "マザーボード", "メモリ", "GPU", "SSD", "電源", "ケース"]
+CATEGORIES = ["CPU", "CPUクーラー", "マザーボード", "メモリ", "GPU", "SSD", "電源", "ケース", "OS"]
 
 
 def load_parts(path="parts.csv"):
@@ -70,6 +89,15 @@ def pattern_total(pattern_name, parts):
     return total
 
 
+def pattern_selected(pattern_name, parts):
+    """構成パターンのパーツを「カテゴリ → パーツ」の辞書にする。"""
+    selected = {}
+    for part_name in PATTERNS[pattern_name]:
+        p = parts[part_name]
+        selected[p["カテゴリ"]] = p
+    return selected
+
+
 def show_pattern(pattern_name, parts):
     """構成パターンの内訳と合計を表示する。"""
     print(f"\n=== {pattern_name} ===")
@@ -77,6 +105,10 @@ def show_pattern(pattern_name, parts):
         p = parts[part_name]
         print(f"  [{p['カテゴリ']}] {p['名前']}  ¥{p['価格']:,}")
     print(f"  合計: ¥{pattern_total(pattern_name, parts):,}")
+    warnings = check_compatibility(pattern_selected(pattern_name, parts))
+    if warnings:
+        for w in warnings:
+            print(f"  ⚠ {w}")
 
 
 def show_all_patterns(parts):
@@ -112,19 +144,31 @@ def show_all_parts(parts):
 # ============================================================
 # カスタム構成モード + 互換性チェック
 # ============================================================
+def mem_matches(mem_spec, cpu_spec):
+    """メモリ規格がCPUの対応規格に合っているか判定する。
+
+    CPU側が "DDR4/DDR5" のように両対応の場合は、どちらでもOKとする。
+    """
+    return mem_spec in cpu_spec.split("/")
+
+
 def check_compatibility(selected):
     """選んだパーツ同士の互換性をチェックして、警告のリストを返す。
 
     チェック内容:
-    - CPUとマザーボードのソケット (AM4 / AM5) が合っているか
+    - CPUとマザーボードのソケット (AM4 / AM5 / LGA1700) が合っているか
     - メモリ規格 (DDR4 / DDR5) がマザーボード・CPUと合っているか
     - GPUなしで、CPUにも内蔵GPUがない場合は画面が出ない警告
+    - クーラー別売りのCPUなのにクーラーが選ばれていない警告
+    - ATXマザーボードがMicroATX専用ケースに入らない警告
     """
     warnings = []
     cpu = selected.get("CPU")
+    cooler = selected.get("CPUクーラー")
     mb = selected.get("マザーボード")
     mem = selected.get("メモリ")
     gpu = selected.get("GPU")
+    case = selected.get("ケース")
 
     if cpu and mb and cpu["ソケット"] != mb["ソケット"]:
         warnings.append(
@@ -134,13 +178,21 @@ def check_compatibility(selected):
         warnings.append(
             f"メモリ({mem['メモリ規格']})がマザーボードの対応規格({mb['メモリ規格']})と違う! 物理的に刺さりません"
         )
-    if mem and cpu and mem["メモリ規格"] != cpu["メモリ規格"]:
+    if mem and cpu and not mem_matches(mem["メモリ規格"], cpu["メモリ規格"]):
         warnings.append(
             f"メモリ({mem['メモリ規格']})がCPUの対応規格({cpu['メモリ規格']})と違う!"
         )
     if cpu and not gpu and cpu["内蔵GPU"] == "なし":
         warnings.append(
             "GPUが選ばれていないのに、選んだCPUには内蔵GPUがない! このままだと画面が出ません"
+        )
+    if cpu and not cooler and cpu["クーラー付属"] == "なし":
+        warnings.append(
+            "選んだCPUはクーラー別売りなのに、CPUクーラーが選ばれていない! これでは冷やせません"
+        )
+    if mb and case and mb["フォームファクタ"] == "ATX" and case["フォームファクタ"] == "MicroATX":
+        warnings.append(
+            "ATXマザーボードはMicroATX専用ケースに入りません!"
         )
     return warnings
 

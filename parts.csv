@@ -1,14 +1,59 @@
-カテゴリ,名前,価格,ソケット,メモリ規格,内蔵GPU,備考
-CPU,AMD Ryzen 5 5600,21799,AM4,DDR4,なし,クーラー付属BOX
-CPU,AMD Ryzen 5 7500F,24800,AM5,DDR5,なし,クーラー付属BOX
-マザーボード,ASRock B550M-HDV,7269,AM4,DDR4,,MicroATX
-マザーボード,ASRock B550 Phantom Gaming 4,13860,AM4,DDR4,,ATX
-マザーボード,ASRock B650M PG Riptide WiFi White,22100,AM5,DDR5,,MicroATX・Wi-Fi付き
-メモリ,Corsair DDR4-3200 32GB (16GBx2),37480,,DDR4,,CMK32GX4M2E3200C16
-メモリ,DDR5-5600 32GB (16GBx2) 最安クラス,59980,,DDR5,,価格.comカテゴリ最安
-GPU,ASRock Radeon RX 7600 Steel Legend 8GB OC,47500,,,,VRAM 8GB
-GPU,Colorful GeForce RTX 5060 Gaming DUO 8GB,85800,,,,VRAM 8GB GDDR7
-SSD,KIOXIA EXCERIA PLUS G3 1TB,32120,,,,NVMe Gen4・TBW 600TB
-SSD,Samsung 990 PRO 1TB,34980,,,,NVMe Gen4
-電源,Fractal Design ION Gold 750W,13830,,,,80PLUS GOLD
-ケース,NZXT H5 Flow,11780,,,,ミドルタワー
+カテゴリ,名前,価格,ソケット,メモリ規格,内蔵GPU,クーラー付属,フォームファクタ,備考
+CPU,AMD Ryzen 5 5500,16170,AM4,DDR4,なし,あり,,PCIe 3.0・Wraith Stealth付属
+CPU,AMD Ryzen 5 5600,21799,AM4,DDR4,なし,あり,,Wraith Stealth付属BOX
+CPU,AMD Ryzen 5 5600X,23894,AM4,DDR4,なし,あり,,価格.comスペック上はクーラー付属
+CPU,AMD Ryzen 7 5700X,31980,AM4,DDR4,なし,なし,,クーラー別売
+CPU,AMD Ryzen 5 7500F,24800,AM5,DDR5,なし,あり,,Wraith Stealth付属BOX
+CPU,AMD Ryzen 5 7600,26404,AM5,DDR5,あり,あり,,Wraith Stealth付属BOX
+CPU,AMD Ryzen 5 7600X,27980,AM5,DDR5,あり,なし,,クーラー別売
+CPU,AMD Ryzen 7 7700,37800,AM5,DDR5,あり,あり,,Wraith Stealth付属(新版BOX)
+CPU,AMD Ryzen 7 7800X3D,53341,AM5,DDR5,あり,なし,,3D V-Cache・クーラー別売
+CPU,Intel Core i5-12400F,25970,LGA1700,DDR4/DDR5,なし,あり,,Laminar RM1付属BOX
+CPU,Intel Core i5-13400F,37348,LGA1700,DDR4/DDR5,なし,あり,,Laminar RM1付属BOX・在庫薄
+CPUクーラー,サイズ 虎徹 MARK4 SCKTT-4000,2570,,,,,空冷・高さ155mm・AM4/AM5/LGA1700対応
+CPUクーラー,DEEPCOOL AG400 G2,2709,,,,,空冷・AM4/AM5/LGA1700対応
+CPUクーラー,DEEPCOOL AK400,2990,,,,,空冷・定番モデル
+CPUクーラー,Thermalright Peerless Assassin 120 SE V3,4518,,,,,空冷・ツインタワー
+CPUクーラー,DEEPCOOL LE240 V2,7980,,,,,簡易水冷240mm
+CPUクーラー,玄人志向 KURO-AIOWC360/V2,10330,,,,,簡易水冷360mm
+CPUクーラー,Noctua NH-U12A,14750,,,,,空冷・静音高性能・高さ158mm
+マザーボード,ASRock B550M-HDV,7269,AM4,DDR4,,,MicroATX,
+マザーボード,ASRock B550 Phantom Gaming 4,13860,AM4,DDR4,,,ATX,
+マザーボード,MSI B550M PRO-VDH WIFI,16004,AM4,DDR4,,,MicroATX,Wi-Fi付き
+マザーボード,ASRock B650M PG Riptide WiFi White,22100,AM5,DDR5,,,MicroATX,Wi-Fi付き
+マザーボード,MSI MAG B650 TOMAHAWK WIFI,34500,AM5,DDR5,,,ATX,Wi-Fi付き
+マザーボード,ASRock B760M-HDV/M.2 D4,13289,LGA1700,DDR4,,,MicroATX,Intel用
+マザーボード,MSI B760 GAMING PLUS WIFI,8155,LGA1700,DDR5,,,ATX,Intel用・Wi-Fi付き・クリアランス価格帯
+メモリ,Silicon Power DDR4-3200 16GB (8GBx2),15911,,DDR4,,,,SP016GBLFU320B22
+メモリ,Corsair VENGEANCE LPX DDR4-3200 16GB (8GBx2),21980,,DDR4,,,,CMK16GX4M2E3200C16
+メモリ,Corsair DDR4-3200 32GB (16GBx2),37480,,DDR4,,,,CMK32GX4M2E3200C16
+メモリ,ADATA DDR5-5600 16GB (8GBx2),34980,,DDR5,,,,AD5U56008G-DT
+メモリ,DDR5-5600 32GB (16GBx2) 最安クラス,59980,,DDR5,,,,価格.comカテゴリ最安
+メモリ,ADATA XPG LANCER BLADE DDR5-6000 32GB (16GBx2),73900,,DDR5,,,,CL48
+メモリ,Corsair VENGEANCE DDR5-6000 32GB (16GBx2) CL30,91614,,DDR5,,,,CMK32GX5M2B6000C30
+GPU,ASRock Radeon RX 7600 Steel Legend 8GB OC,47500,,,,,VRAM 8GB
+GPU,Colorful GeForce RTX 5060 Battle AX DUO 8GB,82800,,,,,GDDR7 8GB
+GPU,Colorful GeForce RTX 5060 Gaming DUO 8GB,85800,,,,,GDDR7 8GB
+GPU,玄人志向 Radeon RX 7800 XT 16GB,85800,,,,,RD-RX7800XT-E16GB/DF・終売間近
+GPU,ASRock Radeon RX 9060 XT Challenger 16GB OC,89800,,,,,GDDR6 16GB・価格変動中
+GPU,ASRock Radeon RX 9070 Challenger 16GB,125800,,,,,GDDR6 16GB
+GPU,PNY GeForce RTX 5060 Ti 16GB OC Dual Fan,144980,,,,,GDDR7 16GB・価格高騰中
+GPU,Palit GeForce RTX 5070 Infinity 3 12GB,149800,,,,,GDDR7 12GB・ドスパラ限定モデル
+SSD,WD_BLACK SN7100 1TB,31480,,,,,NVMe Gen4・読込7,250MB/s
+SSD,KIOXIA EXCERIA PLUS G3 1TB,32120,,,,,NVMe Gen4・TBW 600TB
+SSD,Samsung 990 PRO 1TB,34980,,,,,NVMe Gen4
+SSD,Crucial T700 1TB ヒートシンク付き,45000,,,,,NVMe Gen5・読込11,700MB/s
+SSD,Samsung 990 PRO 2TB,83800,,,,,NVMe Gen4
+SSD,Crucial P1 500GB,15980,,,,,NVMe Gen3・価格は少し前の観測値
+電源,GIGABYTE P550B 550W,6779,,,,,80PLUS BRONZE
+電源,ASRock Steel Legend SL-650G 650W,10980,,,,,80PLUS GOLD・ドスパラ限定
+電源,Corsair RM750e 2025 750W,12490,,,,,GOLD相当・ATX3.1・フルモジュラー
+電源,ドスパラセレクト 850W GOLD ATX3.1,12980,,,,,80PLUS GOLD・フルプラグイン
+電源,Fractal Design ION Gold 750W,13830,,,,,80PLUS GOLD
+電源,ASUS Prime 850W Gold AP-850G,13980,,,,,80PLUS GOLD
+ケース,ZALMAN Z3 Iceberg Black,5580,,,,,ATX,ドスパラ限定モデル
+ケース,MONTECH XR,7371,,,,,ATX,ピラーレス・White最安
+ケース,NZXT H3 Flow,7818,,,,,MicroATX,MicroATX専用ケース
+ケース,NZXT H5 Flow,11780,,,,,ATX,ミドルタワー
+ケース,Fractal Design Pop Air Solid,12436,,,,,ATX,
+OS,Microsoft Windows 11 Home パッケージ版,14755,,,,,USBメディア

@@ -93,28 +93,116 @@
 <script>
 // ===== パーツデータ (parts.csv と同じ内容) =====
 const PARTS = [
-  {cat:"CPU", name:"AMD Ryzen 5 5600", price:21799, socket:"AM4", mem:"DDR4", igpu:"なし", note:"クーラー付属BOX"},
-  {cat:"CPU", name:"AMD Ryzen 5 7500F", price:24800, socket:"AM5", mem:"DDR5", igpu:"なし", note:"クーラー付属BOX"},
-  {cat:"マザーボード", name:"ASRock B550M-HDV", price:7269, socket:"AM4", mem:"DDR4", note:"MicroATX"},
-  {cat:"マザーボード", name:"ASRock B550 Phantom Gaming 4", price:13860, socket:"AM4", mem:"DDR4", note:"ATX"},
-  {cat:"マザーボード", name:"ASRock B650M PG Riptide WiFi White", price:22100, socket:"AM5", mem:"DDR5", note:"MicroATX・Wi-Fi付き"},
-  {cat:"メモリ", name:"Corsair DDR4-3200 32GB (16GBx2)", price:37480, mem:"DDR4", note:"CMK32GX4M2E3200C16"},
-  {cat:"メモリ", name:"DDR5-5600 32GB (16GBx2) 最安クラス", price:59980, mem:"DDR5", note:"価格.comカテゴリ最安"},
-  {cat:"GPU", name:"ASRock Radeon RX 7600 Steel Legend 8GB OC", price:47500, note:"VRAM 8GB"},
-  {cat:"GPU", name:"Colorful GeForce RTX 5060 Gaming DUO 8GB", price:85800, note:"VRAM 8GB GDDR7"},
-  {cat:"SSD", name:"KIOXIA EXCERIA PLUS G3 1TB", price:32120, note:"NVMe Gen4・TBW 600TB"},
-  {cat:"SSD", name:"Samsung 990 PRO 1TB", price:34980, note:"NVMe Gen4"},
-  {cat:"電源", name:"Fractal Design ION Gold 750W", price:13830, note:"80PLUS GOLD"},
-  {cat:"ケース", name:"NZXT H5 Flow", price:11780, note:"ミドルタワー"}
+  {"cat": "CPU", "name": "AMD Ryzen 5 5500", "price": 16170, "socket": "AM4", "mem": "DDR4", "igpu": "なし", "cooler": "あり", "note": "PCIe 3.0・Wraith Stealth付属"},
+  {"cat": "CPU", "name": "AMD Ryzen 5 5600", "price": 21799, "socket": "AM4", "mem": "DDR4", "igpu": "なし", "cooler": "あり", "note": "Wraith Stealth付属BOX"},
+  {"cat": "CPU", "name": "AMD Ryzen 5 5600X", "price": 23894, "socket": "AM4", "mem": "DDR4", "igpu": "なし", "cooler": "あり", "note": "価格.comスペック上はクーラー付属"},
+  {"cat": "CPU", "name": "AMD Ryzen 7 5700X", "price": 31980, "socket": "AM4", "mem": "DDR4", "igpu": "なし", "cooler": "なし", "note": "クーラー別売"},
+  {"cat": "CPU", "name": "AMD Ryzen 5 7500F", "price": 24800, "socket": "AM5", "mem": "DDR5", "igpu": "なし", "cooler": "あり", "note": "Wraith Stealth付属BOX"},
+  {"cat": "CPU", "name": "AMD Ryzen 5 7600", "price": 26404, "socket": "AM5", "mem": "DDR5", "igpu": "あり", "cooler": "あり", "note": "Wraith Stealth付属BOX"},
+  {"cat": "CPU", "name": "AMD Ryzen 5 7600X", "price": 27980, "socket": "AM5", "mem": "DDR5", "igpu": "あり", "cooler": "なし", "note": "クーラー別売"},
+  {"cat": "CPU", "name": "AMD Ryzen 7 7700", "price": 37800, "socket": "AM5", "mem": "DDR5", "igpu": "あり", "cooler": "あり", "note": "Wraith Stealth付属(新版BOX)"},
+  {"cat": "CPU", "name": "AMD Ryzen 7 7800X3D", "price": 53341, "socket": "AM5", "mem": "DDR5", "igpu": "あり", "cooler": "なし", "note": "3D V-Cache・クーラー別売"},
+  {"cat": "CPU", "name": "Intel Core i5-12400F", "price": 25970, "socket": "LGA1700", "mem": "DDR4/DDR5", "igpu": "なし", "cooler": "あり", "note": "Laminar RM1付属BOX"},
+  {"cat": "CPU", "name": "Intel Core i5-13400F", "price": 37348, "socket": "LGA1700", "mem": "DDR4/DDR5", "igpu": "なし", "cooler": "あり", "note": "Laminar RM1付属BOX・在庫薄"},
+  {"cat": "CPUクーラー", "name": "サイズ 虎徹 MARK4 SCKTT-4000", "price": 2570, "ff": "空冷・高さ155mm・AM4/AM5/LGA1700対応"},
+  {"cat": "CPUクーラー", "name": "DEEPCOOL AG400 G2", "price": 2709, "ff": "空冷・AM4/AM5/LGA1700対応"},
+  {"cat": "CPUクーラー", "name": "DEEPCOOL AK400", "price": 2990, "ff": "空冷・定番モデル"},
+  {"cat": "CPUクーラー", "name": "Thermalright Peerless Assassin 120 SE V3", "price": 4518, "ff": "空冷・ツインタワー"},
+  {"cat": "CPUクーラー", "name": "DEEPCOOL LE240 V2", "price": 7980, "ff": "簡易水冷240mm"},
+  {"cat": "CPUクーラー", "name": "玄人志向 KURO-AIOWC360/V2", "price": 10330, "ff": "簡易水冷360mm"},
+  {"cat": "CPUクーラー", "name": "Noctua NH-U12A", "price": 14750, "ff": "空冷・静音高性能・高さ158mm"},
+  {"cat": "マザーボード", "name": "ASRock B550M-HDV", "price": 7269, "socket": "AM4", "mem": "DDR4", "ff": "MicroATX"},
+  {"cat": "マザーボード", "name": "ASRock B550 Phantom Gaming 4", "price": 13860, "socket": "AM4", "mem": "DDR4", "ff": "ATX"},
+  {"cat": "マザーボード", "name": "MSI B550M PRO-VDH WIFI", "price": 16004, "socket": "AM4", "mem": "DDR4", "ff": "MicroATX", "note": "Wi-Fi付き"},
+  {"cat": "マザーボード", "name": "ASRock B650M PG Riptide WiFi White", "price": 22100, "socket": "AM5", "mem": "DDR5", "ff": "MicroATX", "note": "Wi-Fi付き"},
+  {"cat": "マザーボード", "name": "MSI MAG B650 TOMAHAWK WIFI", "price": 34500, "socket": "AM5", "mem": "DDR5", "ff": "ATX", "note": "Wi-Fi付き"},
+  {"cat": "マザーボード", "name": "ASRock B760M-HDV/M.2 D4", "price": 13289, "socket": "LGA1700", "mem": "DDR4", "ff": "MicroATX", "note": "Intel用"},
+  {"cat": "マザーボード", "name": "MSI B760 GAMING PLUS WIFI", "price": 8155, "socket": "LGA1700", "mem": "DDR5", "ff": "ATX", "note": "Intel用・Wi-Fi付き・クリアランス価格帯"},
+  {"cat": "メモリ", "name": "Silicon Power DDR4-3200 16GB (8GBx2)", "price": 15911, "mem": "DDR4", "note": "SP016GBLFU320B22"},
+  {"cat": "メモリ", "name": "Corsair VENGEANCE LPX DDR4-3200 16GB (8GBx2)", "price": 21980, "mem": "DDR4", "note": "CMK16GX4M2E3200C16"},
+  {"cat": "メモリ", "name": "Corsair DDR4-3200 32GB (16GBx2)", "price": 37480, "mem": "DDR4", "note": "CMK32GX4M2E3200C16"},
+  {"cat": "メモリ", "name": "ADATA DDR5-5600 16GB (8GBx2)", "price": 34980, "mem": "DDR5", "note": "AD5U56008G-DT"},
+  {"cat": "メモリ", "name": "DDR5-5600 32GB (16GBx2) 最安クラス", "price": 59980, "mem": "DDR5", "note": "価格.comカテゴリ最安"},
+  {"cat": "メモリ", "name": "ADATA XPG LANCER BLADE DDR5-6000 32GB (16GBx2)", "price": 73900, "mem": "DDR5", "note": "CL48"},
+  {"cat": "メモリ", "name": "Corsair VENGEANCE DDR5-6000 32GB (16GBx2) CL30", "price": 91614, "mem": "DDR5", "note": "CMK32GX5M2B6000C30"},
+  {"cat": "GPU", "name": "ASRock Radeon RX 7600 Steel Legend 8GB OC", "price": 47500, "ff": "VRAM 8GB"},
+  {"cat": "GPU", "name": "Colorful GeForce RTX 5060 Battle AX DUO 8GB", "price": 82800, "ff": "GDDR7 8GB"},
+  {"cat": "GPU", "name": "Colorful GeForce RTX 5060 Gaming DUO 8GB", "price": 85800, "ff": "GDDR7 8GB"},
+  {"cat": "GPU", "name": "玄人志向 Radeon RX 7800 XT 16GB", "price": 85800, "ff": "RD-RX7800XT-E16GB/DF・終売間近"},
+  {"cat": "GPU", "name": "ASRock Radeon RX 9060 XT Challenger 16GB OC", "price": 89800, "ff": "GDDR6 16GB・価格変動中"},
+  {"cat": "GPU", "name": "ASRock Radeon RX 9070 Challenger 16GB", "price": 125800, "ff": "GDDR6 16GB"},
+  {"cat": "GPU", "name": "PNY GeForce RTX 5060 Ti 16GB OC Dual Fan", "price": 144980, "ff": "GDDR7 16GB・価格高騰中"},
+  {"cat": "GPU", "name": "Palit GeForce RTX 5070 Infinity 3 12GB", "price": 149800, "ff": "GDDR7 12GB・ドスパラ限定モデル"},
+  {"cat": "SSD", "name": "WD_BLACK SN7100 1TB", "price": 31480, "ff": "NVMe Gen4・読込7", "note": "250MB/s"},
+  {"cat": "SSD", "name": "KIOXIA EXCERIA PLUS G3 1TB", "price": 32120, "ff": "NVMe Gen4・TBW 600TB"},
+  {"cat": "SSD", "name": "Samsung 990 PRO 1TB", "price": 34980, "ff": "NVMe Gen4"},
+  {"cat": "SSD", "name": "Crucial T700 1TB ヒートシンク付き", "price": 45000, "ff": "NVMe Gen5・読込11", "note": "700MB/s"},
+  {"cat": "SSD", "name": "Samsung 990 PRO 2TB", "price": 83800, "ff": "NVMe Gen4"},
+  {"cat": "SSD", "name": "Crucial P1 500GB", "price": 15980, "ff": "NVMe Gen3・価格は少し前の観測値"},
+  {"cat": "電源", "name": "GIGABYTE P550B 550W", "price": 6779, "ff": "80PLUS BRONZE"},
+  {"cat": "電源", "name": "ASRock Steel Legend SL-650G 650W", "price": 10980, "ff": "80PLUS GOLD・ドスパラ限定"},
+  {"cat": "電源", "name": "Corsair RM750e 2025 750W", "price": 12490, "ff": "GOLD相当・ATX3.1・フルモジュラー"},
+  {"cat": "電源", "name": "ドスパラセレクト 850W GOLD ATX3.1", "price": 12980, "ff": "80PLUS GOLD・フルプラグイン"},
+  {"cat": "電源", "name": "Fractal Design ION Gold 750W", "price": 13830, "ff": "80PLUS GOLD"},
+  {"cat": "電源", "name": "ASUS Prime 850W Gold AP-850G", "price": 13980, "ff": "80PLUS GOLD"},
+  {"cat": "ケース", "name": "ZALMAN Z3 Iceberg Black", "price": 5580, "ff": "ATX", "note": "ドスパラ限定モデル"},
+  {"cat": "ケース", "name": "MONTECH XR", "price": 7371, "ff": "ATX", "note": "ピラーレス・White最安"},
+  {"cat": "ケース", "name": "NZXT H3 Flow", "price": 7818, "ff": "MicroATX", "note": "MicroATX専用ケース"},
+  {"cat": "ケース", "name": "NZXT H5 Flow", "price": 11780, "ff": "ATX", "note": "ミドルタワー"},
+  {"cat": "ケース", "name": "Fractal Design Pop Air Solid", "price": 12436, "ff": "ATX"},
+  {"cat": "OS", "name": "Microsoft Windows 11 Home パッケージ版", "price": 14755, "ff": "USBメディア"}
 ];
 
 const PATTERNS = {
-  "AM4コスパゲーミング": ["AMD Ryzen 5 5600","ASRock B550M-HDV","Corsair DDR4-3200 32GB (16GBx2)","ASRock Radeon RX 7600 Steel Legend 8GB OC","KIOXIA EXCERIA PLUS G3 1TB","Fractal Design ION Gold 750W","NZXT H5 Flow"],
-  "VRChat向け AM4強化": ["AMD Ryzen 5 5600","ASRock B550 Phantom Gaming 4","Corsair DDR4-3200 32GB (16GBx2)","Colorful GeForce RTX 5060 Gaming DUO 8GB","KIOXIA EXCERIA PLUS G3 1TB","Fractal Design ION Gold 750W","NZXT H5 Flow"],
-  "AM5バランス": ["AMD Ryzen 5 7500F","ASRock B650M PG Riptide WiFi White","DDR5-5600 32GB (16GBx2) 最安クラス","Colorful GeForce RTX 5060 Gaming DUO 8GB","Samsung 990 PRO 1TB","Fractal Design ION Gold 750W","NZXT H5 Flow"]
+  "AM4コスパゲーミング": [
+    "AMD Ryzen 5 5600",
+    "ASRock B550M-HDV",
+    "Corsair DDR4-3200 32GB (16GBx2)",
+    "ASRock Radeon RX 7600 Steel Legend 8GB OC",
+    "KIOXIA EXCERIA PLUS G3 1TB",
+    "Fractal Design ION Gold 750W",
+    "NZXT H5 Flow"
+  ],
+  "VRChat向け AM4強化": [
+    "AMD Ryzen 5 5600",
+    "ASRock B550 Phantom Gaming 4",
+    "Corsair DDR4-3200 32GB (16GBx2)",
+    "Colorful GeForce RTX 5060 Gaming DUO 8GB",
+    "KIOXIA EXCERIA PLUS G3 1TB",
+    "Fractal Design ION Gold 750W",
+    "NZXT H5 Flow"
+  ],
+  "AM5バランス": [
+    "AMD Ryzen 5 7500F",
+    "ASRock B650M PG Riptide WiFi White",
+    "DDR5-5600 32GB (16GBx2) 最安クラス",
+    "Colorful GeForce RTX 5060 Gaming DUO 8GB",
+    "Samsung 990 PRO 1TB",
+    "Fractal Design ION Gold 750W",
+    "NZXT H5 Flow"
+  ],
+  "AM5 VRChat本気": [
+    "AMD Ryzen 7 7800X3D",
+    "Thermalright Peerless Assassin 120 SE V3",
+    "MSI MAG B650 TOMAHAWK WIFI",
+    "ADATA XPG LANCER BLADE DDR5-6000 32GB (16GBx2)",
+    "ASRock Radeon RX 9070 Challenger 16GB",
+    "Samsung 990 PRO 2TB",
+    "Corsair RM750e 2025 750W",
+    "Fractal Design Pop Air Solid"
+  ],
+  "Intel入門": [
+    "Intel Core i5-12400F",
+    "ASRock B760M-HDV/M.2 D4",
+    "Silicon Power DDR4-3200 16GB (8GBx2)",
+    "ASRock Radeon RX 7600 Steel Legend 8GB OC",
+    "WD_BLACK SN7100 1TB",
+    "GIGABYTE P550B 550W",
+    "MONTECH XR"
+  ]
 };
 
-const CATEGORIES = ["CPU","マザーボード","メモリ","GPU","SSD","電源","ケース"];
+const CATEGORIES = ["CPU","CPUクーラー","マザーボード","メモリ","GPU","SSD","電源","ケース","OS"];
 const byName = {};
 PARTS.forEach(p => byName[p.name] = p);
 
@@ -187,20 +275,30 @@ function getSelected() {
   return selected;
 }
 
+function memMatches(memSpec, cpuSpec) {
+  return cpuSpec.split("/").includes(memSpec);
+}
+
 function checkCompatibility(selected) {
   const warnings = [];
-  const cpu = selected["CPU"], mb = selected["マザーボード"], mem = selected["メモリ"], gpu = selected["GPU"];
+  const cpu = selected["CPU"], cooler = selected["CPUクーラー"], mb = selected["マザーボード"], mem = selected["メモリ"], gpu = selected["GPU"], pcCase = selected["ケース"];
   if (cpu && mb && cpu.socket !== mb.socket) {
     warnings.push(`CPUのソケット(${cpu.socket})とマザーボードのソケット(${mb.socket})が違う! この組み合わせでは付きません`);
   }
   if (mem && mb && mem.mem !== mb.mem) {
     warnings.push(`メモリ(${mem.mem})がマザーボードの対応規格(${mb.mem})と違う! 物理的に刺さりません`);
   }
-  if (mem && cpu && mem.mem !== cpu.mem) {
+  if (mem && cpu && !memMatches(mem.mem, cpu.mem)) {
     warnings.push(`メモリ(${mem.mem})がCPUの対応規格(${cpu.mem})と違う!`);
   }
   if (cpu && !gpu && cpu.igpu === "なし") {
     warnings.push("GPUが選ばれていないのに、選んだCPUには内蔵GPUがない! このままだと画面が出ません");
+  }
+  if (cpu && !cooler && cpu.cooler === "なし") {
+    warnings.push("選んだCPUはクーラー別売りなのに、CPUクーラーが選ばれていない! これでは冷やせません");
+  }
+  if (mb && pcCase && mb.ff === "ATX" && pcCase.ff === "MicroATX") {
+    warnings.push("ATXマザーボードはMicroATX専用ケースに入りません!");
   }
   return warnings;
 }
