@@ -85,11 +85,27 @@
   <select id="pattern-select"></select>
   <div id="pattern-detail"></div>
 
+  <h2>パターン比較</h2>
+  <div class="card">
+    <table>
+      <tr><th>パターン</th><th>合計</th><th>CPU</th><th>GPU</th><th>推奨電源</th></tr>
+      <tbody id="compare-body"></tbody>
+    </table>
+  </div>
+
   <h2>予算で探す</h2>
   <div class="card">
     <input type="number" id="budget" placeholder="予算 (円)" min="0" step="1000">
     <button onclick="checkBudget()">探す</button>
     <div id="budget-result" style="margin-top:10px;"></div>
+  </div>
+
+  <h2>予算から自動構成</h2>
+  <div class="card">
+    <p style="margin-top:0;">予算を入れるだけで、互換性のある構成を自動で組みます (価格の種類はカスタム構成の「価格の種類」に連動します)。</p>
+    <input type="number" id="auto-budget" placeholder="予算 (円)" min="0" step="1000">
+    <button onclick="runAuto()">自動で組む</button>
+    <div id="auto-result" style="margin-top:10px;"></div>
   </div>
 
   <h2>カスタム構成 (互換性チェック付き)</h2>
@@ -123,10 +139,33 @@
     <div id="warnings" style="margin-top:8px;"></div>
     <div id="custom-perf" style="margin-top:8px;"></div>
     <div id="custom-power" style="margin-top:8px;"></div>
+    <div id="custom-extra" style="margin-top:8px;"></div>
     <button onclick="showBuyLinks()" style="margin-top:10px;">🛒 購入リンクをまとめる</button>
     <button onclick="copyCustom()" style="margin-top:10px;">📋 構成をコピー</button>
     <div id="buy-links" style="margin-top:8px;"></div>
     <div id="copy-result" style="margin-top:8px;"></div>
+  </div>
+
+  <h2>組み立てチェックリスト</h2>
+  <div class="card">
+    <p><strong>必要なもの</strong></p>
+    <ul>
+      <li>プラスドライバー (#2) — ほぼ全てのネジはこれ1本でOK</li>
+      <li>作業スペースと明るさ — ネジを無くさないよう小皿があると便利</li>
+      <li>静電気対策 — 作業前に金属部分に触って放電する</li>
+      <li>OSインストール用のUSBメモリ (8GB以上) と、それを作るための別のPC</li>
+      <li>ネット環境 — ドライバやWindowsの更新を落とすのに必要</li>
+    </ul>
+    <p><strong>このツールに含まれていないもの</strong></p>
+    <ul>
+      <li>モニター、キーボード、マウス、ヘッドセット/スピーカー</li>
+      <li>LANケーブル (Wi-Fi非搭載マザーボードの場合) またはWi-Fi子機</li>
+      <li>電源タップ、HDMI/DisplayPortケーブル (モニターに付属している場合あり)</li>
+    </ul>
+    <p><strong>あると便利</strong></p>
+    <ul>
+      <li>結束バンド (配線整理)、CPUグリス (クーラーに付属していることが多い)</li>
+    </ul>
   </div>
 
   <footer>
@@ -398,7 +437,11 @@ function showSelectedPattern() {
   });
   const desc = PATTERN_INFO[name] ? `<p>${PATTERN_INFO[name]}</p>` : "";
   const power = powerLines(patternSelected(name)).map(l => `<p>${l}</p>`).join("");
-  box.innerHTML = `<div class="card"><h3>${name}</h3>${desc}<table>${rows}</table><div class="total">合計: ${yen(patternTotal(name))}</div>${perfHtml(patternSelected(name))}${power}<button onclick="showPatternLinks()" style="margin-top:10px;">🛒 購入リンクをまとめる</button> <button onclick="copyPattern()" style="margin-top:10px;">📋 構成をコピー</button><div id="pattern-links" style="margin-top:8px;"></div><div id="pattern-copy" style="margin-top:8px;"></div></div>`;
+  const extraLines = balanceLines(patternSelected(name), patternTotal(name), p => p.price);
+  const upLine = upgradeSuggestion(patternSelected(name), p => p.price);
+  if (upLine) extraLines.push(upLine);
+  const extra = extraLines.map(l => `<p>${l}</p>`).join("");
+  box.innerHTML = `<div class="card"><h3>${name}</h3>${desc}<table>${rows}</table><div class="total">合計: ${yen(patternTotal(name))}</div>${perfHtml(patternSelected(name))}${power}${extra}<button onclick="showPatternLinks()" style="margin-top:10px;">🛒 購入リンクをまとめる</button> <button onclick="copyPattern()" style="margin-top:10px;">📋 構成をコピー</button><div id="pattern-links" style="margin-top:8px;"></div><div id="pattern-copy" style="margin-top:8px;"></div></div>`;
 }
 
 function pickPurpose(name) {
@@ -608,6 +651,13 @@ function checkCompatibility(selected) {
       warnings.push(`メモリが${m[1]}枚組なのに、マザーボードのメモリスロットは${slots}つだけです! 全部は刺さりません`);
     }
   }
+  const gpuPart = selected["GPU"];
+  if (gpuPart) {
+    const v = gpuVram(gpuPart.name);
+    if (v !== null && v <= 8) {
+      warnings.push(`ℹ このGPUのVRAMは${v}GBです。VRChatや最新の重いゲームでは不足気味になることがあります。長く使うなら12GB以上が安心です`);
+    }
+  }
   return warnings;
 }
 
@@ -769,19 +819,239 @@ function psuWattage(p) {
   return m ? parseInt(m[1], 10) : null;
 }
 
+function estimatePower(selected) {
+  const gpu = selected["GPU"], cpu = selected["CPU"];
+  if (!gpu || !cpu) return [null, null];
+  const gt = gpuTdpFor(gpu.name), cw = cpuPowerFor(cpu.name);
+  if (gt === null || cw === null) return [null, null];
+  const est = gt + cw + 100;
+  return [est, Math.ceil(est * 1.25 / 50) * 50];
+}
+
 function powerLines(selected) {
   const gpu = selected["GPU"], cpu = selected["CPU"], psu = selected["電源"];
   if (!gpu || !cpu || !psu) return [];
   const gt = gpuTdpFor(gpu.name), cw = cpuPowerFor(cpu.name), w = psuWattage(psu);
   if (gt === null || cw === null || w === null) return [];
-  const est = gt + cw + 100;
-  const rec = Math.ceil(est * 1.25 / 50) * 50;
+  const [est, rec] = estimatePower(selected);
   const lines = [`🔌 電源チェック: 推定最大消費電力 約${est}W (GPU ${gt}W + CPU ${cw}W + その他 100W) / 推奨電源 ${rec}W / 選択中の電源 ${w}W`];
   if (w < est) lines.push("⚠ 電源容量が推定最大消費電力を下回っています。容量の大きい電源を推奨します");
   else if (w < rec) lines.push("△ 最低ラインは満たしますが、電源容量の余裕が少なめです");
   else lines.push("✓ 電源容量に余裕があります");
+  const elec = Math.round(est * 0.7 * 3 * 30 / 1000 * 31 / 10) * 10;
+  lines.push(`💡 電気代の目安: 1日3時間ゲームした場合で月 約¥${elec.toLocaleString("ja-JP")} (平均負荷・31円/kWhで計算)`);
   if (gpu.name.includes("RTX 50")) lines.push("ℹ RTX 50系は12V-2x6コネクタを使います (変換アダプタはGPUに付属)。ATX 3.x対応電源だとケーブル1本で接続できます");
   return lines;
+}
+
+const GAME_FPS = [
+  ["Valorant", [[12000, "240fps安定"], [6000, "144fps安定"], [3000, "60fps安定"], [0, "設定を下げれば60fps"]]],
+  ["Apex Legends", [[20000, "144fps安定"], [14000, "100fps前後"], [9000, "60fps安定"], [5000, "設定を下げれば60fps"], [0, "厳しい"]]],
+  ["Fortnite", [[24000, "144fps安定"], [16000, "100fps前後"], [10000, "60fps安定"], [6000, "設定を下げれば60fps"], [0, "厳しい"]]],
+  ["原神", [[14000, "最高設定60fps安定"], [8000, "60fps安定"], [4000, "中設定で60fps"], [0, "設定を下げればプレイ可"]]],
+  ["Minecraft (バニラ)", [[10000, "快適 (影MODは別)"], [5000, "快適"], [0, "軽い設定なら可"]]],
+  ["モンスターハンターワイルズ", [[30000, "高設定60fps"], [22000, "中設定60fps"], [16000, "低設定+アップスケーリングで60fps"], [0, "厳しい"]]]
+];
+
+function gameFpsLines(selected) {
+  const gpu = selected["GPU"];
+  if (!gpu) return [];
+  const g = gpuScoreFor(gpu.name);
+  if (g === null) return [];
+  const lines = ["🎯 ゲーム別fps目安 (1080p・目安)"];
+  for (const [game, bands] of GAME_FPS) {
+    for (const [th, label] of bands) {
+      if (g >= th) { lines.push(`${game}: ${label}`); break; }
+    }
+  }
+  const cpu = selected["CPU"];
+  if (cpu && CPU_SCORES[cpu.name] && gpuLevel(g) - cpuLevel(CPU_SCORES[cpu.name][0]) >= 2) {
+    lines.push("※ CPUがボトルネックになりやすく、上のfpsに届かない場面があります");
+  }
+  return lines;
+}
+
+function gpuVram(name) {
+  const ms = [...name.matchAll(/(\d+)\s*GB?/g)];
+  return ms.length ? parseInt(ms[ms.length - 1][1], 10) : null;
+}
+
+function balanceLines(selected, total, getter) {
+  if (!total || total <= 0) return [];
+  const gpu = selected["GPU"], cpu = selected["CPU"];
+  if (!gpu || !cpu) return [];
+  const gs = getter(gpu) / total * 100, cs = getter(cpu) / total * 100;
+  const lines = [`💰 予算配分: GPU ${gs.toFixed(0)}% / CPU ${cs.toFixed(0)}% / その他 ${(100 - gs - cs).toFixed(0)}%`];
+  if (gs < 30) lines.push("ゲーム用途ならGPUの配分が低めです。GPUに寄せると体感が上がりやすいです");
+  else if (gs > 55) lines.push("GPU特化の配分です。CPUとのバランス (ボトルネック) に注意");
+  else if (cs > 25) lines.push("CPUの配分が高めです。ゲーム中心ならGPUに回すのも手です");
+  else lines.push("バランスの良い配分です");
+  return lines;
+}
+
+function upgradeSuggestion(selected, getter, limit = 15000) {
+  const gpu = selected["GPU"];
+  if (!gpu) return "";
+  const curScore = gpuScoreFor(gpu.name) || 0;
+  if (!curScore) return "";
+  const curPrice = getter(gpu);
+  const caseP = selected["ケース"], psu = selected["電源"], cpu = selected["CPU"];
+  let best = null;
+  for (const p of PARTS) {
+    if (p.cat !== "GPU" || p.name === gpu.name) continue;
+    const pr = getter(p);
+    if (pr === null || pr === undefined) continue;
+    const diff = pr - curPrice;
+    if (diff <= 0 || diff > limit) continue;
+    const sc = gpuScoreFor(p.name) || 0;
+    if (sc <= curScore) continue;
+    if (caseP) {
+      const lim = CASE_LIMITS[caseP.name], gl = GPU_LEN[p.name];
+      if (lim && gl && gl > lim[0]) continue;
+    }
+    if (psu && cpu) {
+      const est2 = (gpuTdpFor(p.name) || 0) + (cpuPowerFor(cpu.name) || 0) + 100;
+      if (est2 > (psuWattage(psu) || 0)) continue;
+    }
+    const gain = (sc - curScore) / curScore * 100;
+    if (!best || gain > best.gain) best = { gain, p, diff };
+  }
+  if (best) return `🚀 アップグレード提案: あと約${yen(best.diff)}でGPUを「${best.p.name}」に上げると、GPU性能が約${best.gain.toFixed(0)}%アップします`;
+  return "";
+}
+
+function autoBuild(budget) {
+  const price = p => priceOf(p);
+  const avail = cat => PARTS.filter(p => p.cat === cat && price(p) !== null);
+  const SHARES = { "GPU": 0.34, "CPU": 0.15, "マザーボード": 0.09, "メモリ": 0.09, "SSD": 0.08, "電源": 0.06, "ケース": 0.05, "CPUクーラー": 0.03, "OS": 0.11 };
+  const platform = budget >= 240000 ? "AM5" : "AM4";
+  const memSpec = platform === "AM5" ? "DDR5" : "DDR4";
+  const byPrice = arr => arr.slice().sort((a, b) => price(a) - price(b));
+  const sel = {};
+  if (avail("OS").length) sel["OS"] = byPrice(avail("OS"))[0];
+  const cpus = avail("CPU").filter(p => p.socket === platform);
+  if (cpus.length) {
+    const inCap = cpus.filter(p => price(p) <= budget * SHARES["CPU"]);
+    sel["CPU"] = inCap.length
+      ? inCap.slice().sort((a, b) => (CPU_SCORES[b.name]?.[1] || 0) - (CPU_SCORES[a.name]?.[1] || 0))[0]
+      : byPrice(cpus)[0];
+  }
+  const pen = p => (p.name.includes("A520") || p.name.includes("A620")) ? 1 : 0;
+  const mbs = avail("マザーボード").filter(p => p.socket === platform && p.mem === memSpec);
+  if (mbs.length) {
+    const inCap = mbs.filter(p => price(p) <= budget * SHARES["マザーボード"]);
+    const pool = inCap.length ? inCap : mbs;
+    sel["マザーボード"] = pool.slice().sort((a, b) => pen(a) - pen(b) || price(a) - price(b))[0];
+  }
+  const mems = avail("メモリ").filter(p => p.mem === memSpec);
+  if (mems.length) {
+    const cap = budget * SHARES["メモリ"];
+    const want32 = mems.filter(p => p.name.includes("32GB") && price(p) <= cap);
+    const inCap = mems.filter(p => price(p) <= cap);
+    sel["メモリ"] = byPrice(want32.length ? want32 : inCap.length ? inCap : mems)[0];
+  }
+  if (sel["CPU"] && sel["CPU"].cooler === "なし" && avail("CPUクーラー").length) {
+    sel["CPUクーラー"] = byPrice(avail("CPUクーラー"))[0];
+  }
+  const gpus = avail("GPU");
+  if (gpus.length) {
+    const inCap = gpus.filter(p => price(p) <= budget * SHARES["GPU"]);
+    sel["GPU"] = inCap.length
+      ? inCap.slice().sort((a, b) => (gpuScoreFor(b.name) || 0) - (gpuScoreFor(a.name) || 0))[0]
+      : byPrice(gpus)[0];
+  }
+  const ssdCands = avail("SSD");
+  if (ssdCands.length) {
+    const cap = budget * SHARES["SSD"];
+    const want1tb = ssdCands.filter(p => p.name.includes("1TB") && price(p) <= cap);
+    const inCap = ssdCands.filter(p => price(p) <= cap);
+    sel["SSD"] = byPrice(want1tb.length ? want1tb : inCap.length ? inCap : ssdCands)[0];
+  }
+  const psuPool = avail("電源");
+  if (psuPool.length) {
+    const [, rec] = estimatePower(sel);
+    const ok = psuPool.filter(p => (psuWattage(p) || 0) >= (rec || 0));
+    sel["電源"] = ok.length ? byPrice(ok)[0] : psuPool.slice().sort((a, b) => (psuWattage(b) || 0) - (psuWattage(a) || 0))[0];
+  }
+  const sizeRank = { "ATX": 3, "MicroATX": 2, "Mini-ITX": 1 };
+  if (avail("ケース").length) {
+    const gl = sel["GPU"] ? (GPU_LEN[sel["GPU"].name] || 0) : 0;
+    const mbRank = sel["マザーボード"] ? (sizeRank[sel["マザーボード"].ff] || 0) : 0;
+    const fit = avail("ケース").filter(p => (CASE_LIMITS[p.name]?.[0] ?? 9999) >= gl && (sizeRank[p.ff] || 0) >= mbRank);
+    sel["ケース"] = byPrice(fit.length ? fit : avail("ケース"))[0];
+  }
+  const total = () => Object.values(sel).reduce((s, p) => s + (price(p) || 0), 0);
+  for (let i = 0; i < 3; i++) {
+    const leftover = budget - total();
+    if (leftover <= 0) break;
+    let upgraded = false;
+    if (sel["GPU"] && sel["ケース"]) {
+      const cur = gpuScoreFor(sel["GPU"].name) || 0;
+      const caseLim = CASE_LIMITS[sel["ケース"].name]?.[0] ?? 9999;
+      const better = gpus.filter(p => (gpuScoreFor(p.name) || 0) > cur && price(p) - price(sel["GPU"]) <= leftover && (GPU_LEN[p.name] || 0) <= caseLim);
+      if (better.length) {
+        sel["GPU"] = better.sort((a, b) => (gpuScoreFor(b.name) || 0) - (gpuScoreFor(a.name) || 0))[0];
+        upgraded = true;
+      }
+    }
+    if (!upgraded && sel["SSD"] && !sel["SSD"].name.includes("1TB") && !sel["SSD"].name.includes("2TB")) {
+      const bigger = ssdCands.filter(p => p.name.includes("1TB") && price(p) - price(sel["SSD"]) <= leftover);
+      if (bigger.length) { sel["SSD"] = byPrice(bigger)[0]; upgraded = true; }
+    }
+    if (!upgraded && sel["メモリ"] && sel["メモリ"].name.includes("16GB")) {
+      const bigger = mems.filter(p => p.name.includes("32GB") && price(p) - price(sel["メモリ"]) <= leftover);
+      if (bigger.length) { sel["メモリ"] = byPrice(bigger)[0]; upgraded = true; }
+    }
+    if (!upgraded && sel["CPU"]) {
+      const cur = CPU_SCORES[sel["CPU"].name]?.[1] || 0;
+      const better = cpus.filter(p => (CPU_SCORES[p.name]?.[1] || 0) > cur && price(p) - price(sel["CPU"]) <= leftover);
+      if (better.length) {
+        sel["CPU"] = better.sort((a, b) => (CPU_SCORES[b.name]?.[1] || 0) - (CPU_SCORES[a.name]?.[1] || 0))[0];
+        upgraded = true;
+      }
+    }
+    if (!upgraded) break;
+  }
+  while (total() > budget && sel["GPU"]) {
+    const curPrice = price(sel["GPU"]);
+    const cheaper = gpus.filter(p => price(p) < curPrice);
+    if (!cheaper.length) break;
+    sel["GPU"] = cheaper.sort((a, b) => price(b) - price(a))[0];
+  }
+  return sel;
+}
+
+function renderCompare() {
+  const body = document.getElementById("compare-body");
+  if (!body) return;
+  body.innerHTML = Object.keys(PATTERNS).map(name => {
+    const sel = patternSelected(name);
+    const cs = CPU_SCORES[sel["CPU"].name], gs = gpuScoreFor(sel["GPU"].name);
+    const [, rec] = estimatePower(sel);
+    return `<tr><td>${name}</td><td class="price">${yen(patternTotal(name))}</td><td>${LEVEL_LABELS[cpuLevel(cs[0])]}</td><td>${LEVEL_LABELS[gpuLevel(gs)]}</td><td>${rec}W</td></tr>`;
+  }).join("");
+}
+
+function runAuto() {
+  const budget = parseInt(document.getElementById("auto-budget").value, 10);
+  const box = document.getElementById("auto-result");
+  if (!budget || budget <= 0) { box.innerHTML = "<p>予算を入力してね</p>"; return; }
+  const sel = autoBuild(budget);
+  const cats = CATEGORIES.filter(c => sel[c]);
+  if (!cats.length) { box.innerHTML = "<p>構成を組めなかった…</p>"; return; }
+  let total = 0;
+  cats.forEach(c => total += priceOf(sel[c]) || 0);
+  const mode = document.getElementById("f-mode").value;
+  const rows = cats.map(c => `<tr><td class="cat">${c}</td><td>${sel[c].name}</td><td class="price">${yen(priceOf(sel[c]))}</td></tr>`).join("");
+  const warnings = checkCompatibility(sel);
+  const warnHtml = warnings.length ? warnings.map(w => `<p class="warn">⚠ ${w}</p>`).join("") : `<p class="ok">互換性チェック: 問題なし!</p>`;
+  const power = powerLines(sel).map(l => `<p>${l}</p>`).join("");
+  const extra = balanceLines(sel, total, priceOf);
+  const up = upgradeSuggestion(sel, priceOf);
+  if (up) extra.push(up);
+  const extraHtml = extra.map(l => `<p>${l}</p>`).join("");
+  const over = total > budget ? `<p class="warn">※最安クラスの組み合わせでも予算を超えてしまいます</p>` : "";
+  box.innerHTML = `<h3>予算 ${yen(budget)} の自動構成${mode === "used" ? " (中古相場)" : ""}</h3><table>${rows}</table><div class="total">合計: ${yen(total)}</div>${over}${warnHtml}${perfHtml(sel)}${power}${extraHtml}<div style="margin-top:8px;">${buyLinksHtml(sel)}</div>`;
 }
 
 // ===== 構成の共有テキスト =====
@@ -859,6 +1129,7 @@ function perfLines(selected) {
   } else if (cpuSc || gpuSc) {
     lines.push({ t: "(CPUとGPUの両方を選ぶとバランス判定も出るよ)" });
   }
+  for (const t of gameFpsLines(selected)) lines.push({ t });
   return lines;
 }
 
@@ -913,9 +1184,14 @@ function updateCustom() {
   }
   document.getElementById("custom-perf").innerHTML = perfHtml(selected);
   document.getElementById("custom-power").innerHTML = powerLines(selected).map(l => `<p>${l}</p>`).join("");
+  const extra = balanceLines(selected, total, priceOf);
+  const up = upgradeSuggestion(selected, priceOf);
+  if (up) extra.push(up);
+  document.getElementById("custom-extra").innerHTML = extra.map(l => `<p>${l}</p>`).join("");
 }
 
 renderPatterns();
+renderCompare();
 renderCustomForm();
 </script>
 </body>

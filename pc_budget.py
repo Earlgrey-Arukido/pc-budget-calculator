@@ -371,6 +371,21 @@ def psu_wattage(p):
     return int(m.group(1)) if m else None
 
 
+def estimate_power(selected):
+    """(推定最大消費電力W, 推奨電源容量W) を返す。計算できなければ (None, None)。"""
+    gpu = selected.get("GPU")
+    cpu = selected.get("CPU")
+    if not (gpu and cpu):
+        return (None, None)
+    gt = gpu_tdp_for(gpu["名前"])
+    cw = cpu_power_for(cpu["名前"])
+    if gt is None or cw is None:
+        return (None, None)
+    est = gt + cw + 100  # +100W はマザーボード・SSD・ファン等の分
+    rec = math.ceil(est * 1.25 / 50) * 50  # 推奨容量 = 推定最大×1.25 を50W単位で切り上げ
+    return (est, rec)
+
+
 def power_check(selected):
     """電源容量チェック。結果の行リストを返す (必要なパーツが揃っていない場合は空)。"""
     gpu = selected.get("GPU")
@@ -392,9 +407,301 @@ def power_check(selected):
         lines.append("  △ 最低ラインは満たしますが、電源容量の余裕が少なめです")
     else:
         lines.append("  ✓ 電源容量に余裕があります")
+    elec = int(round(est * 0.7 * 3 * 30 / 1000 * 31, -1))
+    lines.append(f"  💡 電気代の目安: 1日3時間ゲームした場合で月 約¥{elec:,} (平均負荷・31円/kWhで計算)")
     if "RTX 50" in gpu["名前"]:
         lines.append("  ℹ RTX 50系は12V-2x6コネクタを使います (変換アダプタはGPUに付属)。ATX 3.x対応電源だとケーブル1本で接続できます")
     return lines
+
+
+# ゲーム別fps目安 (GPUのG3D Mark → 1080pでの目安ラベル。閾値の降順リスト)
+GAME_FPS = [
+    ("Valorant", [(12000, "240fps安定"), (6000, "144fps安定"), (3000, "60fps安定"), (0, "設定を下げれば60fps")]),
+    ("Apex Legends", [(20000, "144fps安定"), (14000, "100fps前後"), (9000, "60fps安定"), (5000, "設定を下げれば60fps"), (0, "厳しい")]),
+    ("Fortnite", [(24000, "144fps安定"), (16000, "100fps前後"), (10000, "60fps安定"), (6000, "設定を下げれば60fps"), (0, "厳しい")]),
+    ("原神", [(14000, "最高設定60fps安定"), (8000, "60fps安定"), (4000, "中設定で60fps"), (0, "設定を下げればプレイ可")]),
+    ("Minecraft (バニラ)", [(10000, "快適 (影MODは別)"), (5000, "快適"), (0, "軽い設定なら可")]),
+    ("モンスターハンターワイルズ", [(30000, "高設定60fps"), (22000, "中設定60fps"), (16000, "低設定+アップスケーリングで60fps"), (0, "厳しい")]),
+]
+
+
+def game_fps_lines(selected):
+    """ゲーム別fps目安の行リストを返す。"""
+    gpu = selected.get("GPU")
+    if not gpu:
+        return []
+    g = gpu_score_for(gpu["名前"])
+    if g is None:
+        return []
+    lines = ["🎯 ゲーム別fps目安 (1080p・目安)"]
+    for game, bands in GAME_FPS:
+        for threshold, label in bands:
+            if g >= threshold:
+                lines.append(f"  {game}: {label}")
+                break
+    cpu = selected.get("CPU")
+    if cpu and cpu["名前"] in CPU_SCORES:
+        if gpu_level(g) - cpu_level(CPU_SCORES[cpu["名前"]][0]) >= 2:
+            lines.append("  ※ CPUがボトルネックになりやすく、上のfpsに届かない場面があります")
+    return lines
+
+
+def gpu_vram(part_name):
+    """GPU製品名からVRAM容量 (GB) を読み取る。分からなければ None。"""
+    ms = re.findall(r"(\d+)\s*GB?", part_name)
+    if not ms:
+        return None
+    return int(ms[-1])
+
+
+def budget_balance(selected, total, getter):
+    """予算配分の診断行を返す。getter はパーツ→価格の関数。"""
+    if total <= 0:
+        return []
+    gpu = selected.get("GPU")
+    cpu = selected.get("CPU")
+    if not gpu or not cpu:
+        return []
+    gs = getter(gpu) / total * 100
+    cs = getter(cpu) / total * 100
+    lines = [f"💰 予算配分: GPU {gs:.0f}% / CPU {cs:.0f}% / その他 {100 - gs - cs:.0f}%"]
+    if gs < 30:
+        lines.append("  ゲーム用途ならGPUの配分が低めです。GPUに寄せると体感が上がりやすいです")
+    elif gs > 55:
+        lines.append("  GPU特化の配分です。CPUとのバランス (ボトルネック) に注意")
+    elif cs > 25:
+        lines.append("  CPUの配分が高めです。ゲーム中心ならGPUに回すのも手です")
+    else:
+        lines.append("  バランスの良い配分です")
+    return lines
+
+
+def upgrade_suggestion(selected, parts, getter, limit=15000):
+    """あと limit 円以内で効くGPUアップグレードがあれば提案する。"""
+    gpu = selected.get("GPU")
+    if not gpu:
+        return []
+    cur_score = gpu_score_for(gpu["名前"]) or 0
+    if cur_score == 0:
+        return []
+    cur_price = getter(gpu)
+    case = selected.get("ケース")
+    psu = selected.get("電源")
+    cpu = selected.get("CPU")
+    best = None
+    for p in parts.values():
+        if p["カテゴリ"] != "GPU" or p["名前"] == gpu["名前"]:
+            continue
+        pr = getter(p)
+        if pr is None:
+            continue
+        diff = pr - cur_price
+        if diff <= 0 or diff > limit:
+            continue
+        sc = gpu_score_for(p["名前"]) or 0
+        if sc <= cur_score:
+            continue
+        if case:
+            lim = CASE_LIMITS.get(case["名前"])
+            gl = GPU_LENGTH.get(p["名前"])
+            if lim and gl and gl > lim[0]:
+                continue
+        if psu and cpu:
+            est2 = (gpu_tdp_for(p["名前"]) or 0) + (cpu_power_for(cpu["名前"]) or 0) + 100
+            if est2 > (psu_wattage(psu) or 0):
+                continue
+        gain = (sc - cur_score) / cur_score * 100
+        if best is None or gain > best[0]:
+            best = (gain, p, diff)
+    if best:
+        gain, p, diff = best
+        return [f"🚀 アップグレード提案: あと約¥{diff:,}でGPUを「{p['名前']}」に上げると、GPU性能が約{gain:.0f}%アップします"]
+    return []
+
+
+def auto_build(parts, budget, mode="new"):
+    """予算から互換性のある構成を自動で組む。選択 dict を返す。
+
+    カテゴリごとの予算配分を目安に選び、余りはGPU→SSD→メモリ→CPUの順に
+    アップグレードへ回す。予算オーバー時はGPUを段階的に下げる。
+    """
+    def price(p):
+        return price_of(p, mode)
+
+    def avail(cat):
+        return [p for p in parts.values() if p["カテゴリ"] == cat and price(p) is not None]
+
+    SHARES = {"GPU": 0.34, "CPU": 0.15, "マザーボード": 0.09, "メモリ": 0.09,
+              "SSD": 0.08, "電源": 0.06, "ケース": 0.05, "CPUクーラー": 0.03, "OS": 0.11}
+    platform = "AM5" if budget >= 240000 else "AM4"
+    mem_spec = "DDR5" if platform == "AM5" else "DDR4"
+    sel = {}
+    if avail("OS"):
+        sel["OS"] = min(avail("OS"), key=price)
+    cpus = [p for p in avail("CPU") if p["ソケット"] == platform]
+    if cpus:
+        cap = budget * SHARES["CPU"]
+        in_cap = [p for p in cpus if price(p) <= cap]
+        sel["CPU"] = (max(in_cap, key=lambda p: CPU_SCORES.get(p["名前"], [0, 0])[1])
+                      if in_cap else min(cpus, key=price))
+    def chipset_penalty(p):
+        return 1 if ("A520" in p["名前"] or "A620" in p["名前"]) else 0
+    mbs = [p for p in avail("マザーボード") if p["ソケット"] == platform and p["メモリ規格"] == mem_spec]
+    if mbs:
+        cap = budget * SHARES["マザーボード"]
+        in_cap = [p for p in mbs if price(p) <= cap] or mbs
+        sel["マザーボード"] = min(in_cap, key=lambda p: (chipset_penalty(p), price(p)))
+    mems = [p for p in avail("メモリ") if p["メモリ規格"] == mem_spec]
+    if mems:
+        cap = budget * SHARES["メモリ"]
+        want32 = [p for p in mems if "32GB" in p["名前"] and price(p) <= cap]
+        in_cap = [p for p in mems if price(p) <= cap]
+        sel["メモリ"] = min(want32 or in_cap or mems, key=price)
+    if sel.get("CPU") and sel["CPU"]["クーラー付属"] == "なし" and avail("CPUクーラー"):
+        sel["CPUクーラー"] = min(avail("CPUクーラー"), key=price)
+    gpus = avail("GPU")
+    if gpus:
+        cap = budget * SHARES["GPU"]
+        in_cap = [p for p in gpus if price(p) <= cap]
+        sel["GPU"] = (max(in_cap, key=lambda p: gpu_score_for(p["名前"]) or 0)
+                      if in_cap else min(gpus, key=price))
+    ssd_cands = avail("SSD")
+    if ssd_cands:
+        cap = budget * SHARES["SSD"]
+        want1tb = [p for p in ssd_cands if "1TB" in p["名前"] and price(p) <= cap]
+        in_cap = [p for p in ssd_cands if price(p) <= cap]
+        sel["SSD"] = min(want1tb or in_cap or ssd_cands, key=price)
+    psu_pool = avail("電源")
+    if psu_pool:
+        est, rec = estimate_power(sel)
+        ok = [p for p in psu_pool if (psu_wattage(p) or 0) >= (rec or 0)]
+        sel["電源"] = min(ok, key=price) if ok else max(psu_pool, key=lambda p: psu_wattage(p) or 0)
+    size_rank = {"ATX": 3, "MicroATX": 2, "Mini-ITX": 1}
+    if avail("ケース"):
+        gl = GPU_LENGTH.get(sel["GPU"]["名前"]) or 0 if sel.get("GPU") else 0
+        mb_rank = size_rank.get(sel["マザーボード"]["フォームファクタ"], 0) if sel.get("マザーボード") else 0
+        fit = [p for p in avail("ケース")
+               if (CASE_LIMITS.get(p["名前"], (9999, 9999))[0] >= gl)
+               and size_rank.get(p["フォームファクタ"], 0) >= mb_rank]
+        sel["ケース"] = min(fit or avail("ケース"), key=price)
+
+    def total():
+        return sum(price(p) for p in sel.values())
+
+    # 余りをアップグレードに回す (GPU→SSD→メモリ→CPU)
+    for _ in range(3):
+        leftover = budget - total()
+        if leftover <= 0:
+            break
+        upgraded = False
+        if sel.get("GPU") and sel.get("ケース"):
+            cur = gpu_score_for(sel["GPU"]["名前"]) or 0
+            case_lim = CASE_LIMITS.get(sel["ケース"]["名前"], (9999, 9999))[0]
+            better = [p for p in gpus
+                      if (gpu_score_for(p["名前"]) or 0) > cur
+                      and price(p) - price(sel["GPU"]) <= leftover
+                      and (GPU_LENGTH.get(p["名前"]) or 0) <= case_lim]
+            if better:
+                sel["GPU"] = max(better, key=lambda p: gpu_score_for(p["名前"]) or 0)
+                upgraded = True
+        if not upgraded and sel.get("SSD") and "1TB" not in sel["SSD"]["名前"] and "2TB" not in sel["SSD"]["名前"]:
+            bigger = [p for p in ssd_cands if "1TB" in p["名前"] and price(p) - price(sel["SSD"]) <= leftover]
+            if bigger:
+                sel["SSD"] = min(bigger, key=price)
+                upgraded = True
+        if not upgraded and sel.get("メモリ") and "16GB" in sel["メモリ"]["名前"]:
+            bigger = [p for p in mems if "32GB" in p["名前"] and price(p) - price(sel["メモリ"]) <= leftover]
+            if bigger:
+                sel["メモリ"] = min(bigger, key=price)
+                upgraded = True
+        if not upgraded and sel.get("CPU"):
+            cur = CPU_SCORES.get(sel["CPU"]["名前"], [0, 0])[1]
+            better = [p for p in cpus
+                      if CPU_SCORES.get(p["名前"], [0, 0])[1] > cur
+                      and price(p) - price(sel["CPU"]) <= leftover]
+            if better:
+                sel["CPU"] = max(better, key=lambda p: CPU_SCORES.get(p["名前"], [0, 0])[1])
+                upgraded = True
+        if not upgraded:
+            break
+    # 予算オーバーならGPUを段階的に下げる
+    while total() > budget and sel.get("GPU"):
+        cur_price = price(sel["GPU"])
+        cheaper = [p for p in gpus if price(p) < cur_price]
+        if not cheaper:
+            break
+        sel["GPU"] = max(cheaper, key=price)
+    return sel
+
+
+def show_compare(parts):
+    """全パターンの比較表を表示する。"""
+    print("\n=== パターン比較 ===")
+    for name in PATTERNS:
+        sel = pattern_selected(name, parts)
+        cs = CPU_SCORES[sel["CPU"]["名前"]]
+        gs = gpu_score_for(sel["GPU"]["名前"])
+        est, rec = estimate_power(sel)
+        print(f"  {name}: 合計 ¥{pattern_total(name, parts):,} / CPU {LEVEL_LABELS[cpu_level(cs[0])]} / GPU {LEVEL_LABELS[gpu_level(gs)]} / 推奨電源 {rec}W")
+
+
+CHECKLIST = [
+    "--- 組み立てる前にチェック ---",
+    "【必要なもの】",
+    "  ・プラスドライバー (#2) — ほぼ全てのネジはこれ1本でOK",
+    "  ・作業スペースと明るさ — ネジを無くさないよう小皿があると便利",
+    "  ・静電気対策 — 作業前に金属部分に触って放電する",
+    "  ・OSインストール用のUSBメモリ (8GB以上) と、それを作るための別のPC",
+    "  ・ネット環境 — ドライバやWindowsの更新を落とすのに必要",
+    "【このツールに含まれていないもの】",
+    "  ・モニター、キーボード、マウス、ヘッドセット/スピーカー",
+    "  ・LANケーブル (Wi-Fi非搭載マザーボードの場合) またはWi-Fi子機",
+    "  ・電源タップ、HDMI/DisplayPortケーブル (モニターに付属している場合あり)",
+    "【あると便利】",
+    "  ・結束バンド (配線整理)、CPUグリス (クーラーに付属していることが多い)",
+]
+
+
+def auto_build_interactive(parts):
+    """予算を聞いて自動構成を表示する。"""
+    print("\n--- 予算から自動構成 ---")
+    try:
+        budget = int(input("予算 (円): "))
+    except ValueError:
+        print("数字で入力してね")
+        return
+    print("価格の種類は?  1: 新品価格  2: 中古相場")
+    mode = "used" if input("番号: ") == "2" else "new"
+    sel = auto_build(parts, budget, mode)
+    if not sel:
+        print("構成を組めなかった…")
+        return
+    def price(p):
+        return price_of(p, mode)
+    total = sum(price(p) for p in sel.values())
+    print(f"\n=== 予算 ¥{budget:,} の自動構成{' (中古相場)' if mode == 'used' else ''} ===")
+    for cat in CATEGORIES:
+        if cat in sel:
+            print(f"  [{cat}] {sel[cat]['名前']}  ¥{price(sel[cat]):,}")
+    print(f"  合計: ¥{total:,}")
+    if total > budget:
+        print("  ※最安クラスの組み合わせでも予算を超えてしまいます")
+    warnings = check_compatibility(sel)
+    if warnings:
+        print("\n--- 互換性チェック ---")
+        for w in warnings:
+            print(f"  ⚠ {w}")
+    for line in perf_estimate(sel):
+        print(f"  {line}")
+    for line in power_check(sel):
+        print(f"  {line}")
+    for line in budget_balance(sel, total, price):
+        print(f"  {line}")
+    links = buy_links(sel)
+    if links:
+        print("\n--- 購入リンクまとめ (検索リンク) ---")
+        for line in links:
+            print(f"  {line}")
 
 
 def cpu_level(single):
@@ -479,6 +786,7 @@ def perf_estimate(selected):
             lines.append("VRChat目安: 厳しめのクラス")
     elif cpu_sc or gpu_sc:
         lines.append("  (CPUとGPUの両方を選ぶとバランス判定も出るよ)")
+    lines += game_fps_lines(selected)
     return lines
 
 
@@ -585,6 +893,11 @@ def show_pattern(pattern_name, parts):
         print(f"  {line}")
     for line in power_check(pattern_selected(pattern_name, parts)):
         print(f"  {line}")
+    _sel = pattern_selected(pattern_name, parts)
+    for line in budget_balance(_sel, pattern_total(pattern_name, parts), lambda p: p["価格"]):
+        print(f"  {line}")
+    for line in upgrade_suggestion(_sel, parts, lambda p: p["価格"]):
+        print(f"  {line}")
     links = buy_links(pattern_selected(pattern_name, parts))
     if links:
         print("  --- 購入リンクまとめ (検索リンク) ---")
@@ -594,6 +907,7 @@ def show_pattern(pattern_name, parts):
 
 def show_all_patterns(parts):
     """すべての構成パターンを表示する。"""
+    show_compare(parts)
     for name in PATTERNS:
         show_pattern(name, parts)
 
@@ -714,6 +1028,13 @@ def check_compatibility(selected):
             warnings.append(
                 f"メモリが{int(m.group(1))}枚組なのに、マザーボードのメモリスロットは{slots}つだけです! 全部は刺さりません"
             )
+    # VRAM容量の案内
+    if gpu:
+        vram = gpu_vram(gpu["名前"])
+        if vram is not None and vram <= 8:
+            warnings.append(
+                f"ℹ このGPUのVRAMは{vram}GBです。VRChatや最新の重いゲームでは不足気味になることがあります。長く使うなら12GB以上が安心です"
+            )
     return warnings
 
 
@@ -790,6 +1111,12 @@ def custom_build(parts):
     for line in power_check(selected):
         print(f"  {line}")
 
+    # 予算配分とアップグレード提案
+    for line in budget_balance(selected, total, lambda p: price_of(p, mode)):
+        print(f"  {line}")
+    for line in upgrade_suggestion(selected, parts, lambda p: price_of(p, mode)):
+        print(f"  {line}")
+
     # 購入リンクまとめ
     links = buy_links(selected)
     if links:
@@ -819,6 +1146,8 @@ def main():
         print("  2: 予算に収まるパターンを探す")
         print("  3: パーツ一覧を見る")
         print("  4: カスタム構成を作る (互換性チェック付き)")
+        print("  5: 予算から自動で構成を組む")
+        print("  6: 組み立てチェックリストを見る")
         print("  0: 終了")
         choice = input("番号を入力: ")
         if choice == "1":
@@ -829,11 +1158,17 @@ def main():
             show_all_parts(parts)
         elif choice == "4":
             custom_build(parts)
+        elif choice == "5":
+            auto_build_interactive(parts)
+        elif choice == "6":
+            print()
+            for line in CHECKLIST:
+                print(line)
         elif choice == "0":
             print("またね!")
             break
         else:
-            print("その番号はないよ。0〜4で選んでね")
+            print("その番号はないよ。0〜6で選んでね")
 
 
 if __name__ == "__main__":
