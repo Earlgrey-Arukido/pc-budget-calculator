@@ -35,6 +35,14 @@ CPU,Intel Core i5-14600K,45118,LGA1700,DDR4/DDR5,あり,なし,,
 CPU,Intel Core i3-14100,21270,LGA1700,DDR4/DDR5,あり,あり,,
 CPU,Intel Core i5-12400,31980,LGA1700,DDR4/DDR5,あり,あり,,
 CPU,Intel Core i3-12100F,24980,LGA1700,DDR4/DDR5,なし,あり,,
+CPU,AMD Ryzen 7 3800XT,40495,AM4,DDR4,なし,なし,,取扱い1店舗のみ
+CPU,AMD Ryzen 9 3900XT,63000,AM4,DDR4,なし,なし,,取扱い1店舗のみ
+CPU,AMD Ryzen 5 5600XT,27300,AM4,DDR4,なし,あり,,Wraith Stealth付属
+CPU,AMD Ryzen 7 5800XT,34800,AM4,DDR4,なし,なし,,クーラー別売・Wraith Prism付属版BOXもあり
+CPU,AMD Ryzen 9 5900XT,51909,AM4,DDR4,なし,なし,,クーラー別売
+CPU,AMD Ryzen 7 5800X3D,62480,AM4,DDR4,なし,なし,,3D V-Cache・10th Anniversary Edition BOXの価格
+CPU,AMD Ryzen 9 7900X3D,99800,AM5,DDR5,あり,なし,,3D V-Cache・取扱い2店舗
+CPU,AMD Ryzen 9 7950X3D,108000,AM5,DDR5,あり,なし,,3D V-Cache・取扱い2店舗
 CPUクーラー,サイズ 虎徹 MARK4 SCKTT-4000,2570,,,,,空冷・高さ155mm・AM4/AM5/LGA1700対応
 CPUクーラー,DEEPCOOL AG400 G2,2709,,,,,空冷・AM4/AM5/LGA1700対応
 CPUクーラー,DEEPCOOL AK400,2990,,,,,空冷・定番モデル
