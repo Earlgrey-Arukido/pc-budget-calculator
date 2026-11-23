@@ -78,6 +78,197 @@ GROUP_ORDER = {
 }
 
 
+# ============================================================
+# 性能見積もり用スコア (PassMark: 2026-11-23 時点で調査)
+# CPUは parts.csv の「名前」と完全一致で引く。
+# GPUは製品名に含まれるチップ名で引く (ボードメーカーで性能はほぼ同じ)。
+# ============================================================
+CPU_SCORES = {
+    "AMD Ryzen 5 5500": (3062, 19246),
+    "AMD Ryzen 5 5600": (3254, 21489),
+    "AMD Ryzen 5 5600X": (3366, 21820),
+    "AMD Ryzen 7 5700X": (3386, 26536),
+    "AMD Ryzen 7 5800X": (3449, 27649),
+    "AMD Ryzen 9 5900X": (3465, 38880),
+    "AMD Ryzen 5 4500": (2583, 15915),
+    "AMD Ryzen 5 7500F": (3822, 26487),
+    "AMD Ryzen 5 7600": (3907, 26964),
+    "AMD Ryzen 5 7600X": (4127, 28254),
+    "AMD Ryzen 7 7700": (4050, 34307),
+    "AMD Ryzen 7 7700X": (4175, 35472),
+    "AMD Ryzen 7 7800X3D": (3759, 34280),
+    "AMD Ryzen 5 8500G": (3874, 21343),
+    "AMD Ryzen 5 8600G": (3875, 25165),
+    "AMD Ryzen 7 8700G": (3919, 31462),
+    "AMD Ryzen 5 9600X": (4568, 30004),
+    "AMD Ryzen 7 9700X": (4642, 36911),
+    "AMD Ryzen 7 9800X3D": (4420, 39911),
+    "AMD Ryzen 9 9900X": (4670, 54274),
+    "AMD Ryzen 9 9900X3D": (4628, 56038),
+    "AMD Ryzen 9 9950X": (4726, 65677),
+    "AMD Ryzen 9 9950X3D": (4736, 70108),
+    "Intel Core i5-12400F": (3483, 19516),
+    "Intel Core i5-12400": (3466, 18836),
+    "Intel Core i5-13400F": (3628, 24870),
+    "Intel Core i3-12100F": (3431, 13949),
+    "Intel Core i3-14100": (3761, 15097),
+    "Intel Core i5-14600K": (4264, 38338),
+    "Intel Core i7-14700K": (4453, 51886),
+    "Intel Core Ultra 5 225": (4416, 30372),
+    "Intel Core Ultra 5 245K": (4710, 42974),
+    "Intel Core Ultra 5 245KF": (4719, 43041),
+    "Intel Core Ultra 7 265K": (4928, 58565),
+    "Intel Core Ultra 7 265KF": (4923, 58429),
+    "Intel Core Ultra 9 285K": (5087, 67227),
+}
+
+# (チップ名, G3D Mark) 上から順に照合するので「Ti / XT」などの付くものを先に書く
+GPU_CHIP_SCORES = [
+    ("RTX 5090", 39035),
+    ("RTX 5080", 35652),
+    ("RTX 5070 Ti", 32330),
+    ("RTX 5070", 28684),
+    ("RTX 5060", 20580),
+    ("RTX 5050", 16689),
+    ("RTX 4060", 19477),
+    ("RTX 3090 Ti", 29176),
+    ("RTX 3090", 26456),
+    ("RTX 3080 Ti", 26720),
+    ("RTX 3080", 24966),
+    ("RTX 3070 Ti", 23154),
+    ("RTX 3070", 22059),
+    ("RTX 3060 Ti", 20206),
+    ("RTX 3060", 16872),
+    ("RTX 3050", 12450),
+    ("RX 9070 XT", 26929),
+    ("RX 9070", 25374),
+    ("RX 9060 XT", 20147),
+    ("RX 7900 XTX", 31469),
+    ("RX 7900 XT", 29127),
+    ("RX 7900 GRE", 27455),
+    ("RX 7800 XT", 24482),
+    ("RX 7700 XT", 22797),
+    ("RX 7600 XT", 17370),
+    ("RX 7600", 16429),
+    ("RX 6950 XT", 28079),
+    ("RX 6900 XT", 26631),
+    ("RX 6800 XT", 25118),
+    ("RX 6800", 22045),
+    ("RX 6750 XT", 20705),
+    ("RX 6700 XT", 19712),
+    ("RX 6650 XT", 17087),
+    ("RX 6600 XT", 16447),
+    ("RX 6600", 15030),
+    ("RX 6500 XT", 9619),
+    ("RX 6400", 7756),
+    ("Arc B580", 16095),
+    ("Arc B570", 14206),
+    ("Arc A770", 13382),
+    ("Arc A750", 12618),
+    ("Arc A580", 12061),
+    ("Arc A380", 6340),
+    ("Arc A310", 5463),
+]
+
+LEVEL_LABELS = ["低め", "エントリー", "ミドル", "ミドルハイ", "ハイ", "最上位"]
+
+
+def gpu_score_for(part_name):
+    """GPU製品名からチップを判定して G3D Mark を返す。分からなければ None。"""
+    # RTX 5060 Ti は VRAM容量で PassMark の値が分かれるので先に処理する
+    if "RTX 5060 Ti" in part_name:
+        return 22636 if "16GB" in part_name else 21755
+    for chip, score in GPU_CHIP_SCORES:
+        if chip in part_name:
+            return score
+    return None
+
+
+def cpu_level(single):
+    """シングルスレッドスコア → 0〜5 の性能レベル。"""
+    if single >= 4400:
+        return 5
+    if single >= 3900:
+        return 4
+    if single >= 3400:
+        return 3
+    if single >= 3000:
+        return 2
+    if single >= 2600:
+        return 1
+    return 0
+
+
+def gpu_level(g3d):
+    """G3D Mark → 0〜5 の性能レベル。"""
+    if g3d >= 30000:
+        return 5
+    if g3d >= 24000:
+        return 4
+    if g3d >= 19000:
+        return 3
+    if g3d >= 14000:
+        return 2
+    if g3d >= 9000:
+        return 1
+    return 0
+
+
+def perf_estimate(selected):
+    """選んだ構成の性能見積もり (スコア・バランス・VRChat目安) を行のリストで返す。"""
+    lines = []
+    cpu = selected.get("CPU")
+    gpu = selected.get("GPU")
+    cpu_sc = CPU_SCORES.get(cpu["名前"]) if cpu else None
+    gpu_sc = gpu_score_for(gpu["名前"]) if gpu else None
+    if not cpu_sc and not gpu_sc:
+        return lines
+    lines.append("🎮 性能見積もり (PassMark・2026-11-23時点の目安)")
+    cl = gl = None
+    if cpu_sc:
+        cl = cpu_level(cpu_sc[0])
+        lines.append(
+            f"CPU性能: シングル {cpu_sc[0]:,} / マルチ {cpu_sc[1]:,} → {LEVEL_LABELS[cl]}クラス"
+        )
+        if "X3D" in cpu["名前"]:
+            lines.append(
+                "  ※X3Dは3D V-Cacheのおかげで、実際のゲーム/VRChatではシングルスコア以上の性能が出ることが多い"
+            )
+    if gpu_sc:
+        gl = gpu_level(gpu_sc)
+        lines.append(f"GPU性能: G3D Mark {gpu_sc:,} → {LEVEL_LABELS[gl]}クラス")
+    elif gpu is None and cpu and cpu["内蔵GPU"] == "あり":
+        lines.append("GPU性能: 内蔵GPU使用 (スコア目安なし・ゲーム性能は控えめ)")
+    if cl is not None and gl is not None:
+        diff = gl - cl
+        if diff >= 2:
+            lines.append(
+                "バランス: ⚠ CPUボトルネック注意! GPUに対してCPUが弱めで、GPU使用率が上がりきらないタイプの組み合わせ"
+            )
+        elif diff == 1:
+            lines.append("バランス: ややCPU寄り。高fpsを狙うとCPUが先に限界になりやすい")
+        elif diff == 0:
+            lines.append("バランス: 良好! CPUとGPUの釣り合いが取れている")
+        elif diff == -1:
+            lines.append("バランス: GPU寄りの構成。ゲームではGPUが先に上限になる普通のバランス")
+        else:
+            lines.append("バランス: GPUが弱めでCPUを持て余す組み合わせ。将来のGPU強化に余裕あり")
+        weakest = min(cl, gl)
+        if weakest >= 4:
+            lines.append("VRChat目安: 重めのワールドでも戦えるクラス")
+        elif weakest == 3:
+            lines.append("VRChat目安: 概ね快適に遊べるクラス")
+        elif weakest == 2:
+            lines.append("VRChat目安: 軽〜中くらいのワールド向けクラス")
+        elif weakest == 1:
+            lines.append("VRChat目安: 軽いワールド向けクラス")
+        else:
+            lines.append("VRChat目安: 厳しめのクラス")
+    elif cpu_sc or gpu_sc:
+        lines.append("  (CPUとGPUの両方を選ぶとバランス判定も出るよ)")
+    return lines
+
+
 def series_of(p):
     """パーツが属するシリーズ名を返す (グループ表示用)。"""
     if p["カテゴリ"] == "CPU":
@@ -139,6 +330,8 @@ def show_pattern(pattern_name, parts):
     if warnings:
         for w in warnings:
             print(f"  ⚠ {w}")
+    for line in perf_estimate(pattern_selected(pattern_name, parts)):
+        print(f"  {line}")
 
 
 def show_all_patterns(parts):
@@ -289,6 +482,13 @@ def custom_build(parts):
             print(f"  ⚠ {w}")
     else:
         print("  問題なし! ソケットとメモリ規格は合っています")
+
+    # 性能見積もり
+    lines = perf_estimate(selected)
+    if lines:
+        print()
+        for line in lines:
+            print(f"  {line}")
 
 
 def main():
