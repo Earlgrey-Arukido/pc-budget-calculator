@@ -95,8 +95,13 @@
         <option value="">すべて</option>
         <option>AM4</option><option>AM5</option><option>LGA1700</option><option>LGA1851</option>
       </select></span>
-      <span><label>メーカー</label>
-      <select id="f-maker">
+      <span><label>CPUメーカー</label>
+      <select id="f-cpu-maker">
+        <option value="">すべて</option>
+        <option>AMD</option><option>Intel</option>
+      </select></span>
+      <span><label>GPUメーカー</label>
+      <select id="f-gpu-maker">
         <option value="">すべて</option>
         <option>AMD</option><option>Intel</option><option>NVIDIA</option>
       </select></span>
@@ -447,10 +452,12 @@ function passesFilters(p) {
   const price = priceOf(p);
   if (price === null) return false;
   const socket = document.getElementById("f-socket").value;
-  const maker = document.getElementById("f-maker").value;
+  const cpuMaker = document.getElementById("f-cpu-maker").value;
+  const gpuMaker = document.getElementById("f-gpu-maker").value;
   const cap = parseInt(document.getElementById("f-budget").value, 10);
   if (socket && (p.cat === "CPU" || p.cat === "マザーボード") && p.socket !== socket) return false;
-  if (maker && (p.cat === "CPU" || p.cat === "GPU") && makerOf(p) !== maker) return false;
+  if (cpuMaker && p.cat === "CPU" && makerOf(p) !== cpuMaker) return false;
+  if (gpuMaker && p.cat === "GPU" && makerOf(p) !== gpuMaker) return false;
   if (!isNaN(cap) && price > cap) return false;
   return true;
 }
@@ -503,7 +510,7 @@ function renderCustomForm() {
     form.appendChild(sel);
     populateOptions(cat);
   });
-  ["f-mode", "f-socket", "f-maker", "f-budget"].forEach(id => {
+  ["f-mode", "f-socket", "f-cpu-maker", "f-gpu-maker", "f-budget"].forEach(id => {
     document.getElementById(id).addEventListener("change", () => {
       CATEGORIES.forEach(populateOptions);
       updateCustom();
