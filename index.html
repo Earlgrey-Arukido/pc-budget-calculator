@@ -40,6 +40,9 @@
   h1 { font-size: 1.5rem; margin: 8px 0 4px; }
   .sub { color: var(--muted); font-size: 0.85rem; margin-bottom: 20px; }
   h2 { font-size: 1.1rem; margin: 28px 0 10px; border-left: 4px solid var(--accent); padding-left: 8px; }
+  h2.tappable { cursor: pointer; user-select: none; }
+  h2 .tgl { float: right; color: var(--muted); font-size: 0.85rem; transition: transform 0.15s; }
+  h2.closed .tgl { transform: rotate(-90deg); }
   .card {
     background: var(--card);
     border-radius: 12px;
@@ -83,7 +86,7 @@
 <div class="wrap">
   <h1>🖥️ 組めちゃいます！</h1>
   <div class="sub">自作PCシミュレーター ・ 価格データ: 価格.com / Amazon等 最安価格 (2026-11-23 時点) が基準 ・ 中古相場も 2026-11-23 調査 ・ by <a href="https://x.com/Earlgrey_VRC" target="_blank" rel="noopener">あるキド (@Earlgrey_VRC)</a></div>
-  <p><a class="share-btn" href="https://twitter.com/intent/tweet?text=%E8%87%AA%E4%BD%9CPC%E3%82%B7%E3%83%9F%E3%83%A5%E3%83%AC%E3%83%BC%E3%82%BF%E3%83%BC%E3%80%8E%E7%B5%84%E3%82%81%E3%81%A1%E3%82%83%E3%81%84%E3%81%BE%E3%81%99%EF%BC%81%E3%80%8F%E4%BA%88%E7%AE%97%E3%82%92%E5%85%A5%E3%82%8C%E3%82%8B%E3%81%A0%E3%81%91%E3%81%A7%E4%BA%92%E6%8F%9B%E6%80%A7OK%E3%81%AA%E6%A7%8B%E6%88%90%E3%82%92%E8%87%AA%E5%8B%95%E3%81%A7%E7%B5%84%E3%82%93%E3%81%A7%E3%81%8F%E3%82%8C%E3%82%8B%E3%82%88&url=https%3A//earlgrey-arukido.github.io/pc-budget-calculator/&hashtags=%E7%B5%84%E3%82%81%E3%81%A1%E3%82%83%E3%81%84%E3%81%BE%E3%81%99%2C%E8%87%AA%E4%BD%9CPC" target="_blank" rel="noopener">𝕏 でシェアする</a></p>
+  <p><a class="share-btn" href="https://twitter.com/intent/tweet?text=%E8%87%AA%E4%BD%9CPC%E3%82%B7%E3%83%9F%E3%83%A5%E3%83%AC%E3%83%BC%E3%82%BF%E3%83%BC%E3%80%8E%E7%B5%84%E3%82%81%E3%81%A1%E3%82%83%E3%81%84%E3%81%BE%E3%81%99%EF%BC%81%E3%80%8F%E4%BA%88%E7%AE%97%E3%82%92%E5%85%A5%E3%82%8C%E3%82%8B%E3%81%A0%E3%81%91%E3%81%A7%E4%BA%92%E6%8F%9B%E6%80%A7OK%E3%81%AA%E6%A7%8B%E6%88%90%E3%82%92%E8%87%AA%E5%8B%95%E3%81%A7%E7%B5%84%E3%82%93%E3%81%A7%E3%81%8F%E3%82%8C%E3%82%8B%E3%82%88&url=https%3A//earlgrey-arukido.github.io/pc-budget-calculator/&hashtags=%E7%B5%84%E3%82%81%E3%81%A1%E3%82%83%E3%81%84%E3%81%BE%E3%81%99%2C%E8%87%AA%E4%BD%9CPC" target="_blank" rel="noopener">𝕏 でシェアする</a> <a class="share-btn" href="https://forms.gle/VLamhVf8ZZ1ftkpy8" target="_blank" rel="noopener" style="background:var(--accent); border-color:var(--accent);">✉ お問い合わせ・要望</a></p>
 
   <h2>目的から選ぶ</h2>
   <div class="card">
@@ -97,7 +100,7 @@
     <button onclick="pickPurpose('Intel入門')">Intelで入門したい</button>
   </div>
 
-  <h2>構成パターン</h2>
+  <h2>おすすめ構成パターン</h2>
   <p class="sub" style="margin:-4px 0 10px;">おすすめ構成の内訳と合計。選ぶと性能見積もりや電源チェックも出ます</p>
   <select id="pattern-select"></select>
   <div id="pattern-detail"></div>
@@ -1289,6 +1292,25 @@ function updateCustom() {
   }
   document.getElementById("custom-extra").innerHTML = extra.map(l => `<p>${l}</p>`).join("");
 }
+
+// ===== セクションの開閉 (見出しタップで最小化) =====
+document.querySelectorAll("h2").forEach(h => {
+  h.classList.add("tappable");
+  const arrow = document.createElement("span");
+  arrow.className = "tgl";
+  arrow.textContent = "▼";
+  h.appendChild(arrow);
+  const targets = [];
+  let el = h.nextElementSibling;
+  while (el && el.tagName !== "H2" && el.tagName !== "FOOTER") {
+    targets.push(el);
+    el = el.nextElementSibling;
+  }
+  h.addEventListener("click", () => {
+    const closed = h.classList.toggle("closed");
+    targets.forEach(t => { t.style.display = closed ? "none" : ""; });
+  });
+});
 
 renderPatterns();
 renderCompare();

@@ -1227,7 +1227,7 @@ def main():
     print(f"価格データ: 価格.com / Amazon等 最安価格 ({DATA_DATE} 時点) が基準。中古相場も {DATA_DATE} 調査")
     while True:
         print("\n何をする?")
-        print("  1: 構成パターンの合計を見る")
+        print("  1: おすすめ構成パターンの合計を見る")
         print("  2: 予算に収まるパターンを探す")
         print("  3: パーツ一覧を見る")
         print("  4: カスタム構成を作る (互換性チェック付き)")
